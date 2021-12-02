@@ -1,6 +1,7 @@
 
 # Install virtualenv
-python3.7 -m venv venv
+# python3.7 -m venv venv
+python3.8 -m venv venv
 
 # activate it
 source venv/bin/activate
