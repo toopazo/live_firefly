@@ -24,11 +24,13 @@ python -m pip install -U toopazo-tools
 # For some reason I need to run this twice
 python -m pip install -U pymavlink
 
+rm live_ars
 wget https://github.com/toopazo/live_ars/archive/refs/heads/main.zip
 unzip main.zip
 rm main.zip
 mv live_ars-main live_ars
 
+rm live_esc
 wget https://github.com/toopazo/live_esc/archive/refs/heads/main.zip
 unzip main.zip
 rm main.zip
