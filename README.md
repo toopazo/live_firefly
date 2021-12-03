@@ -144,7 +144,7 @@ Therefore, A needs to be a [8x4] matrix and B is a [8x1] vector. To find A and B
 
 - Type ```sudo iwlist wlan0 scan``` and make sure the WiFi connection you want is visible.
 
-- Add to ```/etc/wpa_supplicant/wpa_supplicant.conf ``` the following fields
+- Add to ```/etc/wpa_supplicant/wpa_supplicant.conf``` the following fields
 ```
 network={
     ssid="You SSID Name"
