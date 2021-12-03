@@ -104,6 +104,8 @@ class FireflyMavCmd:
     mavcmd_cnt = 0
     mavcmd_array = [
         'firefly write_delta +0.0 +0.0 1',  # zero delta
+        'firefly write_delta +0.0 +0.0 1',  # zero delta
+        'firefly write_delta +0.0 +0.0 1',  # zero delta
         'firefly write_delta +0.1 +0.1 1',
         'firefly write_delta +0.2 +0.2 1',
         'firefly write_delta +0.3 +0.3 1',
