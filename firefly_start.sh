@@ -37,4 +37,4 @@ ls -all /home/pi/live_ars | grep log_
 echo "Starting live_firefly --------------------------"
 cd /home/pi/live_firefly
 sleep 10
-python firefly_mavcmd_test.py
+python firefly_mavcmd_test.py /dev/ttyACM1 --baud 57600
