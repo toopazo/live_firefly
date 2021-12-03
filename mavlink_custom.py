@@ -8,6 +8,8 @@ Open a shell over MAVLink.
 
 
 from __future__ import print_function
+
+import datetime
 import sys
 import select
 import termios
@@ -97,6 +99,54 @@ class MavlinkSerialPort:
         return ''
 
 
+class FireflyMavCmd:
+    time_prev = datetime.datetime.now()
+    mavcmd_cnt = 0
+    mavcmd_array = [
+        'firefly write_delta +0.0 +0.0 1',  # zero delta
+        'firefly write_delta +0.1 +0.1 1',
+        'firefly write_delta +0.2 +0.2 1',
+        'firefly write_delta +0.3 +0.3 1',
+        'firefly write_delta +0.4 +0.4 1',
+        'firefly write_delta +0.5 +0.5 1',
+        'firefly write_delta +0.6 +0.6 1',
+        'firefly write_delta +0.7 +0.7 1',
+        'firefly write_delta +0.8 +0.8 1',
+        'firefly write_delta +0.9 +0.9 1',
+        'firefly write_delta +1.0 +1.0 1',  # highest +delta
+        'firefly write_delta +0.7 +0.7 1',
+        'firefly write_delta +0.4 +0.4 1',
+        'firefly write_delta -0.1 -0.1 1',
+        'firefly write_delta -0.2 -0.2 1',
+        'firefly write_delta -0.3 -0.3 1',
+        'firefly write_delta -0.4 -0.4 1',
+        'firefly write_delta -0.5 -0.5 1',
+        'firefly write_delta -0.6 -0.6 1',
+        'firefly write_delta -0.7 -0.7 1',
+        'firefly write_delta -0.8 -0.8 1',
+        'firefly write_delta -0.9 -0.9 1',
+        'firefly write_delta -1.0 -1.0 1',  # highest -delta
+    ]
+    mavcmd_iterator = iter(mavcmd_array)
+
+    @staticmethod
+    def check_timeout():
+        time_now = datetime.datetime.now()
+        delta = time_now - FireflyMavCmd.time_prev
+        if delta >= 60:
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def next_mavcmd():
+        try:
+            mavcmd = next(FireflyMavCmd.mavcmd_iterator)
+        except StopIteration:
+            mavcmd = 'firefly write_delta 0 0 0'
+        return mavcmd
+
+
 def main():
     parser = ArgumentParser(description=__doc__)
     help_msg = 'Mavlink port name: serial: DEVICE[,BAUD], udp: IP:PORT, ' \
@@ -161,10 +211,9 @@ def main():
         cnt = 0
         while True:
             cnt = cnt + 1
-            if cnt % 5 == 0:
-                mvlink_cmd = 'firefly write_delta 0 0 1'
-                mav_serialport.write(mvlink_cmd+'\n')
-                time.sleep(3)
+            if FireflyMavCmd.check_timeout():
+                mavcmd = FireflyMavCmd.next_mavcmd()
+                mav_serialport.write(mavcmd+'\n')
 
             data = mav_serialport.read(4096)
             if data and len(data) > 0:
