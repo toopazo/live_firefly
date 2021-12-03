@@ -241,5 +241,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    while True:
+        if FireflyMavCmd.check_timeout():
+            mavcmd = FireflyMavCmd.next_mavcmd()
+            print(mavcmd)
 
