@@ -27,19 +27,16 @@ ps -e | grep python
 
 echo "Checking log files --------------------------"
 sleep 10
-ls -all /home/pi/live_esc/kde_uas85uvc | grep log_
-ls -all /home/pi/live_ars | grep log_
+#ls -all /home/pi/live_esc/kde_uas85uvc | grep log_
+#ls -all /home/pi/live_ars | grep log_
+ls -all /home/pi/live_firefly | grep log_
 
 sleep 10
-ls -all /home/pi/live_esc/kde_uas85uvc | grep log_
-ls -all /home/pi/live_ars | grep log_
+#ls -all /home/pi/live_esc/kde_uas85uvc | grep log_
+#ls -all /home/pi/live_ars | grep log_
+ls -all /home/pi/live_firefly | grep log_
 
 echo "Starting live_firefly --------------------------"
 cd /home/pi/live_firefly
 sleep 10
 python firefly_mavcmd_test.py /dev/ttyACM1 --baud 57600
-
-ps aux |grep python - show all processes which are matching python pattern
-grep -v 'pattern_of_process_you_dont_want_to_kill' - exclude process you don't want to kill
-awk '{print $2}' - show second field of output, it is PID.
-xargs kill - apply kill
