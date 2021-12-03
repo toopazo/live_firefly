@@ -134,7 +134,7 @@ class FireflyMavCmd:
         time_now = datetime.datetime.now()
         delta = time_now - FireflyMavCmd.time_prev
         if delta.seconds >= 10:
-            time_prev = time_now
+            FireflyMavCmd.time_prev = time_now
             return True
         else:
             return False
