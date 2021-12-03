@@ -25,12 +25,12 @@ ps -e | grep python
 
 echo "Checking log files --------------------------"
 sleep 10
-ls -all /home/pi/live_esc/kde_uas85uvc
-ls -all /home/pi/live_ars
+ls -all /home/pi/live_esc/kde_uas85uvc | grep .kdecan
+ls -all /home/pi/live_ars | grep .ars
 
 sleep 10
-ls -all /home/pi/live_esc/kde_uas85uvc
-ls -all /home/pi/live_ars
+ls -all /home/pi/live_esc/kde_uas85uvc | grep .kdecan
+ls -all /home/pi/live_ars | grep .ars
 
 echo "Starting live_firefly --------------------------"
 cd /home/pi/live_firefly
