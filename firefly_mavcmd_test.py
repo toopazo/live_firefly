@@ -114,18 +114,24 @@ class FireflyMavCmd:
         'firefly write_delta +0.8 +0.8 1',
         'firefly write_delta +0.9 +0.9 1',
         'firefly write_delta +1.0 +1.0 1',  # highest +delta
-        'firefly write_delta +0.7 +0.7 1',
-        'firefly write_delta +0.4 +0.4 1',
-        'firefly write_delta -0.1 -0.1 1',
-        'firefly write_delta -0.2 -0.2 1',
-        'firefly write_delta -0.3 -0.3 1',
-        'firefly write_delta -0.4 -0.4 1',
-        'firefly write_delta -0.5 -0.5 1',
-        'firefly write_delta -0.6 -0.6 1',
-        'firefly write_delta -0.7 -0.7 1',
-        'firefly write_delta -0.8 -0.8 1',
-        'firefly write_delta -0.9 -0.9 1',
-        'firefly write_delta -1.0 -1.0 1',  # highest -delta
+        'firefly write_delta +0.8 +0.8 1',  # coming back to zero delta
+        'firefly write_delta +0.6 +0.6 1',  # coming back to zero delta
+        'firefly write_delta +0.4 +0.4 1',  # coming back to zero delta
+        'firefly write_delta +0.2 +0.2 1',  # coming back to zero delta
+        # 'firefly write_delta -0.1 -0.1 1',
+        # 'firefly write_delta -0.2 -0.2 1',
+        # 'firefly write_delta -0.3 -0.3 1',
+        # 'firefly write_delta -0.4 -0.4 1',
+        # 'firefly write_delta -0.5 -0.5 1',
+        # 'firefly write_delta -0.6 -0.6 1',
+        # 'firefly write_delta -0.7 -0.7 1',
+        # 'firefly write_delta -0.8 -0.8 1',
+        # 'firefly write_delta -0.9 -0.9 1',
+        # 'firefly write_delta -1.0 -1.0 1',  # highest -delta
+        # 'firefly write_delta -0.8 -0.8 1',  # coming back to zero delta
+        # 'firefly write_delta -0.6 -0.6 1',  # coming back to zero delta
+        # 'firefly write_delta -0.4 -0.4 1',  # coming back to zero delta
+        # 'firefly write_delta -0.2 -0.2 1',  # coming back to zero delta
     ]
     mavcmd_iterator = iter(mavcmd_array)
 
