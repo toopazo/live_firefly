@@ -158,10 +158,13 @@ def main():
 
         next_heartbeat_time = timer()
 
+        cnt = 0
         while True:
-            mvlink_cmd = 'firefly write_delta 0 0 1'
-            mav_serialport.write(mvlink_cmd+'\n')
-            time.sleep(3)
+            cnt = cnt + 1
+            if cnt % 5 == 0:
+                mvlink_cmd = 'firefly write_delta 0 0 1'
+                mav_serialport.write(mvlink_cmd+'\n')
+                time.sleep(3)
 
             data = mav_serialport.read(4096)
             if data and len(data) > 0:
