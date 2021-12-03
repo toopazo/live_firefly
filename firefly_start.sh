@@ -38,5 +38,6 @@ ls -all /home/pi/live_firefly/logs | grep log_
 
 echo "Starting live_firefly --------------------------"
 cd /home/pi/live_firefly
+source venv/bin/activate
 sleep 10
 python firefly_mavcmd_test.py /dev/ttyACM1 --baud 57600
