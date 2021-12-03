@@ -133,7 +133,7 @@ class FireflyMavCmd:
     def check_timeout():
         time_now = datetime.datetime.now()
         delta = time_now - FireflyMavCmd.time_prev
-        if delta >= 60:
+        if delta.seconds >= 60:
             return True
         else:
             return False
