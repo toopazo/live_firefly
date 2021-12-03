@@ -9,7 +9,8 @@ deactivate
 echo "Starting live_ars --------------------------"
 cd /home/pi/live_ars
 source venv/bin/activate
-python ars_logger.py . &
+#python ars_logger.py . &
+python ars_logger.py /home/pi/live_firefly/logs &
 sleep 10
 deactivate
 ps -e | grep python
@@ -18,7 +19,8 @@ echo "Starting live_esc --------------------------"
 cd /home/pi/live_esc
 source venv/bin/activate
 cd /home/pi/live_esc/kde_uas85uvc
-python kdecan_logger.py . &
+#python kdecan_logger.py . &
+python kdecan_logger.py /home/pi/live_firefly/logs &
 sleep 10
 deactivate
 ps -e | grep python
