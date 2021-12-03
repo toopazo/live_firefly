@@ -138,4 +138,20 @@ Therefore, A needs to be a [8x4] matrix and B is a [8x1] vector. To find A and B
 
 - Use ```work_queue status ```
 
+## Optimum seeking control application (running on companion computer)
+
+- Create a wifi connection for Raspberry (taken from https://binaryupdates.com/how-to-configure-wifi-on-raspberry-pi-4/)
+
+- Type ```sudo iwlist wlan0 scan``` and make sure the WiFi connection you want is visible.
+
+- Add to ```/etc/wpa_supplicant/wpa_supplicant.conf ``` the following fields
+```
+network={
+    ssid="You SSID Name"
+    psk="Your WiFI Password"
+    key_mgmt=WPA-PSK
+}
+```
+
+
 
