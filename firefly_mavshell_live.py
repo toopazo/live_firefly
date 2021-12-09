@@ -242,6 +242,6 @@ if __name__ == '__main__':
     fm_thread.start()
     time.sleep(10)
     # fm.close()
-    fm_queue(FireflyMavshellMsg(keep_running=False))
+    fm_queue.put(FireflyMavshellMsg(keep_running=False))
     print('waiting to close ..')
     fm_thread.join(timeout=60 * 1)
