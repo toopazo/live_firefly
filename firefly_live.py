@@ -1,6 +1,5 @@
 #!/usr/bin/python3
-import datetime
-import sys
+
 # import numpy as np
 # import signal
 # import time
@@ -65,7 +64,7 @@ class SensorIfaceWrapper:
         self.ars = ArsIfaceWrapper(ars_port)
         self.esc = EscIfaceWrapper()
         # self.ctrlalloc = CtrlAllocIface(ctrlalloc_port)
-        self.datetime_0 = datetime.datetime.now()
+        # self.datetime_0 = datetime.datetime.now()
         # self.delta_arr = delta_arr
 
     def get_data(self):
@@ -124,17 +123,17 @@ def test_mavlink_shell():
 
 
 def test_sensor_iface():
-    sensor_iface = SensorIfaceWrapper(
-        ars_port='/dev/ttyACM0')
-    time0 = datetime.datetime.now()
+    sensor_iface = SensorIfaceWrapper(ars_port='/dev/ttyACM0')
+    # time0 = datetime.datetime.now()
+    time0 = time.time()
 
-    _sampling_period = 1
+    sampling_period = 1
     while True:
         print(SensorIfaceWrapper.get_header())
         log_data = sensor_iface.get_data()
         print(log_data)
         TelemetryLogger.busy_waiting(
-            time0, _sampling_period, _sampling_period / 8)
+            time0, sampling_period, sampling_period / 8)
 
 
 if __name__ == '__main__':
