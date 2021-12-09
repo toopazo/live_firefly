@@ -11,6 +11,7 @@ import termios
 import time
 from timeit import default_timer as timer
 import threading
+import queue
 
 try:
     from pymavlink import mavutil
@@ -152,6 +153,11 @@ class FireflyMavCmd:
         return mavcmd
 
 
+class FireflyMavshellMsg:
+    def __init__(self, keep_running):
+        self.keep_running = keep_running
+
+
 class FireflyMavshell:
     def __init__(self, port, baudrate):
         self.port = port
@@ -159,7 +165,7 @@ class FireflyMavshell:
         self.keep_running = True
         self.cmd_rate = 3
 
-    def run(self):
+    def run(self, _queue):
         print(f"[FireflyMavshell] Connecting to MAVLINK at {self.port} {self.baudrate} ..")
         mav_serial = MavlinkSerialPort(self.port, self.baudrate, devnum=10)
 
@@ -188,7 +194,16 @@ class FireflyMavshell:
             next_heartbeat_time = timer()
 
             cnt = 0
-            while self.keep_running:
+            while True:
+                try:
+                    fm_msg = _queue.get(timeout=1)
+                    assert isinstance(fm_msg, FireflyMavshellMsg)
+                    if not fm_msg.keep_running:
+                        mav_serial.close()
+                        return
+                except queue.Empty:
+                    pass
+
                 cnt = cnt + 1
                 if FireflyMavCmd.check_timeout(timeout=self.cmd_rate):
                     mavcmd = FireflyMavCmd.next_mavcmd()
@@ -207,8 +222,6 @@ class FireflyMavshell:
                         mavutil.mavlink.MAV_AUTOPILOT_GENERIC, 0, 0, 0
                     )
                     next_heartbeat_time = heartbeat_time + 1
-            mav_serial.close()
-            return
 
         except serial.serialutil.SerialException as e:
             print(e)
@@ -224,9 +237,11 @@ class FireflyMavshell:
 
 if __name__ == '__main__':
     fm = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
-    fm_thr = threading.Thread(target=fm.run())
-    fm_thr.start()
+    fm_queue = queue.Queue()
+    fm_thread = threading.Thread(target=fm.run, args=(fm_queue,))
+    fm_thread.start()
     time.sleep(10)
-    fm.close()
+    # fm.close()
+    fm_queue(FireflyMavshellMsg(keep_running=False))
     print('waiting to close ..')
-    fm_thr.join(timeout=60*1)
+    fm_thread.join(timeout=60 * 1)
