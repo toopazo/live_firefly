@@ -8,5 +8,5 @@ mvlink_conn = mavutil.mavlink_connection(device='/dev/ttyACM1', baud=57600, auto
 mvlink_conn.wait_heartbeat()
 print("Heartbeat from system (system %u component %u)" % (mvlink_conn.target_system, mvlink_conn.target_component))
 
-mvlink_conn.write('firefly write_delta 0 0 1')
+mvlink_conn.write('firefly nsh_command 0 0 1')
 

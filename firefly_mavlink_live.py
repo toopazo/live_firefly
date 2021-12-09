@@ -96,78 +96,31 @@ class MavlinkSerialPort:
         return ''
 
 
-class FireflyMavCmd:
-    time_prev = datetime.datetime.now()
-    mavcmd_cnt = 0
-    mavcmd_array = [
-        'firefly write_delta +0.0 +0.0 1',  # zero delta
-        'firefly write_delta +0.0 +0.0 1',  # zero delta
-        'firefly write_delta +0.0 +0.0 1',  # zero delta
-        'firefly write_delta +0.1 +0.1 1',
-        'firefly write_delta +0.2 +0.2 1',
-        'firefly write_delta +0.3 +0.3 1',
-        'firefly write_delta +0.4 +0.4 1',
-        'firefly write_delta +0.5 +0.5 1',
-        'firefly write_delta +0.6 +0.6 1',
-        'firefly write_delta +0.7 +0.7 1',
-        'firefly write_delta +0.8 +0.8 1',
-        'firefly write_delta +0.9 +0.9 1',
-        'firefly write_delta +1.0 +1.0 1',  # highest +delta
-        'firefly write_delta +0.8 +0.8 1',  # coming back to zero delta
-        'firefly write_delta +0.6 +0.6 1',  # coming back to zero delta
-        'firefly write_delta +0.4 +0.4 1',  # coming back to zero delta
-        'firefly write_delta +0.2 +0.2 1',  # coming back to zero delta
-        # 'firefly write_delta -0.1 -0.1 1',
-        # 'firefly write_delta -0.2 -0.2 1',
-        # 'firefly write_delta -0.3 -0.3 1',
-        # 'firefly write_delta -0.4 -0.4 1',
-        # 'firefly write_delta -0.5 -0.5 1',
-        # 'firefly write_delta -0.6 -0.6 1',
-        # 'firefly write_delta -0.7 -0.7 1',
-        # 'firefly write_delta -0.8 -0.8 1',
-        # 'firefly write_delta -0.9 -0.9 1',
-        # 'firefly write_delta -1.0 -1.0 1',  # highest -delta
-        # 'firefly write_delta -0.8 -0.8 1',  # coming back to zero delta
-        # 'firefly write_delta -0.6 -0.6 1',  # coming back to zero delta
-        # 'firefly write_delta -0.4 -0.4 1',  # coming back to zero delta
-        # 'firefly write_delta -0.2 -0.2 1',  # coming back to zero delta
-    ]
-    mavcmd_iterator = iter(mavcmd_array)
-
-    @staticmethod
-    def check_timeout(timeout):
-        time_now = datetime.datetime.now()
-        delta = time_now - FireflyMavCmd.time_prev
-        if delta.seconds >= timeout:
-            FireflyMavCmd.time_prev = time_now
-            return True
-        else:
-            return False
-
-    @staticmethod
-    def next_mavcmd():
-        try:
-            mavcmd = next(FireflyMavCmd.mavcmd_iterator)
-        except StopIteration:
-            mavcmd = 'firefly write_delta 0 0 0'
-        return mavcmd
-
-
-class FireflyMavshellEnum(Enum):
+class FireflyMavEnum(Enum):
     stop_running = 1
     nsh_command = 2
 
 
-class FireflyMavshellMsg:
+class FireflyMavMsg:
     def __init__(self, key, val):
-        assert isinstance(key, FireflyMavshellEnum)
+        assert isinstance(key, FireflyMavEnum)
         self.key = key
         self.val = val
-        # stop_running = 1
-        # nsh_command = 2
 
 
-class FireflyMavshell:
+class FireflyMavlink:
+    time_prev = datetime.datetime.now()
+
+    @staticmethod
+    def check_timeout(timeout):
+        time_now = datetime.datetime.now()
+        delta = time_now - FireflyMavlink.time_prev
+        if delta.seconds >= timeout:
+            FireflyMavlink.time_prev = time_now
+            return True
+        else:
+            return False
+
     def __init__(self, port, baudrate):
         self.port = port
         self.baudrate = baudrate
@@ -179,9 +132,9 @@ class FireflyMavshell:
         return _thread
 
     def run(self, _queue):
-        print(f"[FireflyMavshell] Connecting to MAVLINK at {self.port} {self.baudrate} ..")
+        print(f"[{FireflyMavlink.__name__}] Connecting to MAVLINK at {self.port} {self.baudrate} ..")
         mav_serial = MavlinkSerialPort(self.port, self.baudrate, devnum=10)
-        print(f"[FireflyMavshell] Connected to MAVLINK at {self.port} {self.baudrate} ..")
+        print(f"[{FireflyMavlink.__name__}] Connected to MAVLINK at {self.port} {self.baudrate} ..")
 
         # make sure the shell is started
         mav_serial.write('\n')
@@ -191,20 +144,20 @@ class FireflyMavshell:
 
             while True:
                 try:
-                    fm_msg = _queue.get(block=False)
-                    assert isinstance(fm_msg, FireflyMavshellMsg)
-                    print(f'A {FireflyMavshellMsg.__name__} was received')
-                    if fm_msg.key == FireflyMavshellEnum.stop_running and fm_msg.val:
+                    # fm_msg = _queue.get(block=False)
+                    fm_msg = _queue.get(block=True, timeout=0.1)
+                    assert isinstance(fm_msg, FireflyMavMsg)
+                    print(f'A {FireflyMavMsg.__name__} was received')
+                    if fm_msg.key == FireflyMavEnum.stop_running and fm_msg.val:
                         time.sleep(self.cmd_rate)
                         mav_serial.close()
                         return
+                    if fm_msg.key == FireflyMavEnum.nsh_command:
+                        cmd = fm_msg.val
+                        mav_serial.write(cmd + '\n')
+                        print(cmd)
                 except queue.Empty:
                     pass
-
-                if FireflyMavCmd.check_timeout(timeout=self.cmd_rate):
-                    mavcmd = FireflyMavCmd.next_mavcmd()
-                    mav_serial.write(mavcmd + '\n')
-                    print(mavcmd)
 
                 data = mav_serial.read(4096)
                 if data and len(data) > 0:
@@ -226,12 +179,19 @@ class FireflyMavshell:
 
 
 if __name__ == '__main__':
-    fm = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
+    fm = FireflyMavlink(port='/dev/ttyACM1', baudrate=57600)
 
     fm_queue = queue.Queue()
     fm_thread = fm.start(fm_queue)
-    time.sleep(10)
-    fm_queue.put(FireflyMavshellMsg(FireflyMavshellEnum.stop_running, True))
+
+    cmd_rate = 3
+    for i in range(0, 3):
+        if FireflyMavlink.check_timeout(timeout=cmd_rate):
+            nsh_delta = i
+            nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
+            fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
+        time.sleep(cmd_rate)
+    fm_queue.put(FireflyMavMsg(FireflyMavEnum.stop_running, True))
 
     print('Calling join ..')
     fm_thread.join(timeout=60 * 1)

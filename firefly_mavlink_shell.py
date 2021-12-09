@@ -103,37 +103,37 @@ class FireflyMavCmd:
     time_prev = datetime.datetime.now()
     mavcmd_cnt = 0
     mavcmd_array = [
-        'firefly write_delta +0.0 +0.0 1',  # zero delta
-        'firefly write_delta +0.0 +0.0 1',  # zero delta
-        'firefly write_delta +0.0 +0.0 1',  # zero delta
-        'firefly write_delta +0.1 +0.1 1',
-        'firefly write_delta +0.2 +0.2 1',
-        'firefly write_delta +0.3 +0.3 1',
-        'firefly write_delta +0.4 +0.4 1',
-        'firefly write_delta +0.5 +0.5 1',
-        'firefly write_delta +0.6 +0.6 1',
-        'firefly write_delta +0.7 +0.7 1',
-        'firefly write_delta +0.8 +0.8 1',
-        'firefly write_delta +0.9 +0.9 1',
-        'firefly write_delta +1.0 +1.0 1',  # highest +delta
-        'firefly write_delta +0.8 +0.8 1',  # coming back to zero delta
-        'firefly write_delta +0.6 +0.6 1',  # coming back to zero delta
-        'firefly write_delta +0.4 +0.4 1',  # coming back to zero delta
-        'firefly write_delta +0.2 +0.2 1',  # coming back to zero delta
-        # 'firefly write_delta -0.1 -0.1 1',
-        # 'firefly write_delta -0.2 -0.2 1',
-        # 'firefly write_delta -0.3 -0.3 1',
-        # 'firefly write_delta -0.4 -0.4 1',
-        # 'firefly write_delta -0.5 -0.5 1',
-        # 'firefly write_delta -0.6 -0.6 1',
-        # 'firefly write_delta -0.7 -0.7 1',
-        # 'firefly write_delta -0.8 -0.8 1',
-        # 'firefly write_delta -0.9 -0.9 1',
-        # 'firefly write_delta -1.0 -1.0 1',  # highest -delta
-        # 'firefly write_delta -0.8 -0.8 1',  # coming back to zero delta
-        # 'firefly write_delta -0.6 -0.6 1',  # coming back to zero delta
-        # 'firefly write_delta -0.4 -0.4 1',  # coming back to zero delta
-        # 'firefly write_delta -0.2 -0.2 1',  # coming back to zero delta
+        'firefly nsh_command +0.0 +0.0 1',  # zero delta
+        'firefly nsh_command +0.0 +0.0 1',  # zero delta
+        'firefly nsh_command +0.0 +0.0 1',  # zero delta
+        'firefly nsh_command +0.1 +0.1 1',
+        'firefly nsh_command +0.2 +0.2 1',
+        'firefly nsh_command +0.3 +0.3 1',
+        'firefly nsh_command +0.4 +0.4 1',
+        'firefly nsh_command +0.5 +0.5 1',
+        'firefly nsh_command +0.6 +0.6 1',
+        'firefly nsh_command +0.7 +0.7 1',
+        'firefly nsh_command +0.8 +0.8 1',
+        'firefly nsh_command +0.9 +0.9 1',
+        'firefly nsh_command +1.0 +1.0 1',  # highest +delta
+        'firefly nsh_command +0.8 +0.8 1',  # coming back to zero delta
+        'firefly nsh_command +0.6 +0.6 1',  # coming back to zero delta
+        'firefly nsh_command +0.4 +0.4 1',  # coming back to zero delta
+        'firefly nsh_command +0.2 +0.2 1',  # coming back to zero delta
+        # 'firefly nsh_command -0.1 -0.1 1',
+        # 'firefly nsh_command -0.2 -0.2 1',
+        # 'firefly nsh_command -0.3 -0.3 1',
+        # 'firefly nsh_command -0.4 -0.4 1',
+        # 'firefly nsh_command -0.5 -0.5 1',
+        # 'firefly nsh_command -0.6 -0.6 1',
+        # 'firefly nsh_command -0.7 -0.7 1',
+        # 'firefly nsh_command -0.8 -0.8 1',
+        # 'firefly nsh_command -0.9 -0.9 1',
+        # 'firefly nsh_command -1.0 -1.0 1',  # highest -delta
+        # 'firefly nsh_command -0.8 -0.8 1',  # coming back to zero delta
+        # 'firefly nsh_command -0.6 -0.6 1',  # coming back to zero delta
+        # 'firefly nsh_command -0.4 -0.4 1',  # coming back to zero delta
+        # 'firefly nsh_command -0.2 -0.2 1',  # coming back to zero delta
     ]
     mavcmd_iterator = iter(mavcmd_array)
 
@@ -152,7 +152,7 @@ class FireflyMavCmd:
         try:
             mavcmd = next(FireflyMavCmd.mavcmd_iterator)
         except StopIteration:
-            mavcmd = 'firefly write_delta 0 0 0'
+            mavcmd = 'firefly nsh_command 0 0 0'
         return mavcmd
 
 
