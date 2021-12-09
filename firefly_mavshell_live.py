@@ -182,8 +182,9 @@ class FireflyMavshell:
                 try:
                     fm_msg = _queue.get(block=False)
                     assert isinstance(fm_msg, FireflyMavshellMsg)
-                    print(f'A {FireflyMavshellMsg.__name__} queue msg was received')
+                    print(f'A {FireflyMavshellMsg.__name__} was received')
                     if not fm_msg.keep_running:
+                        time.sleep(self.cmd_rate)
                         mav_serial.close()
                         return
                 except queue.Empty:
