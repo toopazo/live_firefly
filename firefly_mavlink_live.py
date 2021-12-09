@@ -138,7 +138,6 @@ class FireflyMavlink:
 
         # make sure the shell is started
         mav_serial.write('\n')
-
         try:
             next_heartbeat_time = timer()
 

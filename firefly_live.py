@@ -60,11 +60,11 @@ class ArsIfaceWrapper:
         self.ars.serial_thread_close()
 
 
-class FireflyIfaceWrapper:
-    def __init__(self, ars_port, ctrlalloc_port):
+class SensorIfaceWrapper:
+    def __init__(self, ars_port):
         self.ars = ArsIfaceWrapper(ars_port)
         self.esc = EscIfaceWrapper()
-        self.ctrlalloc = CtrlAllocIface(ctrlalloc_port)
+        # self.ctrlalloc = CtrlAllocIface(ctrlalloc_port)
         self.datetime_0 = datetime.datetime.now()
         # self.delta_arr = delta_arr
 
@@ -89,8 +89,8 @@ class FireflyIfaceWrapper:
         esc_header = "time s, escid, " \
                      "voltage V, current A, angVel rpm, temp degC, warning, " \
                      "inthtl us, outthtl perc"
-        firefly_header = f"{ars_header}, {esc_header}"
-        return firefly_header
+        sensor_header = f"{ars_header}, {esc_header}"
+        return sensor_header
 
 
 def parse_user_arg(folder):
@@ -123,19 +123,19 @@ def test_mavlink_shell():
     fm_thread.join(timeout=60 * 1)
 
 
-def test_fireflyiface():
-    firefly_iface = FireflyIfaceWrapper(
-        ars_port='/dev/ttyACM0', ctrlalloc_port='/dev/ttyUSB0')
+def test_sensor_iface():
+    sensor_iface = SensorIfaceWrapper(
+        ars_port='/dev/ttyACM0')
     time0 = datetime.datetime.now()
 
     _sampling_period = 1
     while True:
-        print(FireflyIfaceWrapper.get_header())
-        log_data = firefly_iface.get_data()
+        print(SensorIfaceWrapper.get_header())
+        log_data = sensor_iface.get_data()
         print(log_data)
         TelemetryLogger.busy_waiting(
             time0, _sampling_period, _sampling_period / 8)
 
 
 if __name__ == '__main__':
-    test_fireflyiface()
+    test_sensor_iface()
