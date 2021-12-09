@@ -4,9 +4,9 @@
 from __future__ import print_function
 
 import datetime
-import sys
+# import sys
 # import select
-import termios
+# import termios
 # import time
 import time
 from timeit import default_timer as timer
@@ -181,15 +181,15 @@ class FireflyMavshell:
 
         try:
             # termios.tcsetattr(fd_in, termios.TCSANOW, new_attr)
-            cur_line = ''
-            command_history = []
-            cur_history_index = 0
+            # cur_line = ''
+            # command_history = []
+            # cur_history_index = 0
 
-            def erase_last_n_chars(N):
-                if N == 0: return
-                CURSOR_BACK_N = '\x1b[' + str(N) + 'D'
-                ERASE_END_LINE = '\x1b[K'
-                sys.stdout.write(CURSOR_BACK_N + ERASE_END_LINE)
+            # def erase_last_n_chars(N):
+            #     if N == 0: return
+            #     CURSOR_BACK_N = '\x1b[' + str(N) + 'D'
+            #     ERASE_END_LINE = '\x1b[K'
+            #     sys.stdout.write(CURSOR_BACK_N + ERASE_END_LINE)
 
             next_heartbeat_time = timer()
 
