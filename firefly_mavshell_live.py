@@ -200,6 +200,7 @@ class FireflyMavshell:
                     assert isinstance(fm_msg, FireflyMavshellMsg)
                     if not fm_msg.keep_running:
                         mav_serial.close()
+                        termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
                         return
                 except queue.Empty:
                     pass
