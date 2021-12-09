@@ -210,8 +210,9 @@ class FireflyMavshell:
 
                 data = mav_serial.read(4096)
                 if data and len(data) > 0:
-                    sys.stdout.write(data)
-                    sys.stdout.flush()
+                    # sys.stdout.write(data)
+                    # sys.stdout.flush()
+                    print(data)
 
                 # handle heartbeat sending
                 heartbeat_time = timer()
