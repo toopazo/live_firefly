@@ -18,7 +18,7 @@ class FireflyOptimizer:
             try:
                 float(e.strip())
             except ValueError:
-                parsed_data.append(e)
+                parsed_data.append(e.strip())
         # sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
         print(f'parsed_data {parsed_data}')
         m1_curr = parsed_data[4]

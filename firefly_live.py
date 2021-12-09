@@ -40,7 +40,8 @@ class EscIfaceWrapper:
             if len(log_data_final) == 0:
                 log_data_final = log_data
             else:
-                log_data_final = log_data_final + "\r\n" + log_data
+                # log_data_final = log_data_final + "\r\n" + log_data
+                log_data_final = log_data_final + ", " + log_data
             # self.log_fd.write(log_data + "\r\n")
         return log_data_final
 
