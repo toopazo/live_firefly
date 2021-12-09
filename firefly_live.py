@@ -10,6 +10,7 @@ import queue
 from toopazo_tools.file_folder import FileFolderTools as FFTools
 from toopazo_tools.telemetry import TelemetryLogger
 from firefly_mavlink_live import FireflyMavEnum, FireflyMavMsg, FireflyMavlink
+from firefly_optimizer import FireflyOptimizer
 
 from live_ars.ars_interface import ArsIface
 from live_esc.kde_uas85uvc.kdecan_interface import KdeCanIface
@@ -132,8 +133,10 @@ def test_sensor_iface():
         print(SensorIfaceWrapper.get_header())
         log_data = sensor_iface.get_data()
         print(log_data)
-        TelemetryLogger.busy_waiting(
-            time0, sampling_period, sampling_period / 8)
+        print(f'log_data {log_data}')
+        fcost = FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data=log_data)
+        print(f'fcost {fcost}')
+        TelemetryLogger.busy_waiting(time0, sampling_period, sampling_period / 8)
 
 
 if __name__ == '__main__':
