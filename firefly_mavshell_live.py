@@ -168,6 +168,7 @@ class FireflyMavshell:
     def run(self, _queue):
         print(f"[FireflyMavshell] Connecting to MAVLINK at {self.port} {self.baudrate} ..")
         mav_serial = MavlinkSerialPort(self.port, self.baudrate, devnum=10)
+        print(f"[FireflyMavshell] Connected to MAVLINK at {self.port} {self.baudrate} ..")
 
         # make sure the shell is started
         mav_serial.write('\n')
