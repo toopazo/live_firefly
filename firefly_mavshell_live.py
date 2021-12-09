@@ -134,10 +134,10 @@ class FireflyMavCmd:
     mavcmd_iterator = iter(mavcmd_array)
 
     @staticmethod
-    def check_timeout():
+    def check_timeout(timeout):
         time_now = datetime.datetime.now()
         delta = time_now - FireflyMavCmd.time_prev
-        if delta.seconds >= 10:
+        if delta.seconds >= timeout:
             FireflyMavCmd.time_prev = time_now
             return True
         else:
@@ -157,6 +157,7 @@ class FireflyMavshell:
         self.port = port
         self.baudrate = baudrate
         self.keep_running = True
+        self.cmd_rate = 3
 
     def run(self):
         print(f"[FireflyMavshell] Connecting to MAVLINK at {self.port} {self.baudrate} ..")
@@ -189,7 +190,7 @@ class FireflyMavshell:
             cnt = 0
             while self.keep_running:
                 cnt = cnt + 1
-                if FireflyMavCmd.check_timeout():
+                if FireflyMavCmd.check_timeout(timeout=self.cmd_rate):
                     mavcmd = FireflyMavCmd.next_mavcmd()
                     mav_serial.write(mavcmd + '\n')
 
@@ -225,7 +226,7 @@ if __name__ == '__main__':
     fm = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
     fm_thr = threading.Thread(target=fm.run())
     fm_thr.start()
-    time.sleep(20)
+    time.sleep(10)
     fm.close()
     print('waiting to close ..')
     fm_thr.join(timeout=60*1)
