@@ -13,7 +13,7 @@ source venv/bin/activate
 python ars_logger.py /home/pi/live_firefly/logs &
 sleep 10
 deactivate
-ps -e | grep python
+ps aux | grep python
 
 echo "Starting live_esc --------------------------"
 cd /home/pi/live_esc
@@ -23,7 +23,7 @@ cd /home/pi/live_esc/kde_uas85uvc
 python kdecan_logger.py /home/pi/live_firefly/logs &
 sleep 10
 deactivate
-ps -e | grep python
+ps aux | grep python
 
 echo "Checking log files --------------------------"
 #sleep 10
@@ -40,4 +40,4 @@ echo "Starting live_firefly --------------------------"
 cd /home/pi/live_firefly
 source venv/bin/activate
 sleep 10
-python firefly_mavcmd_test.py /dev/ttyACM1 --baud 57600
+python firefly_mavshell_static.py /dev/ttyACM1 --baud 57600

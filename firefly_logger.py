@@ -5,7 +5,7 @@ import sys
 # import signal
 # import time
 # import datetime
-import time
+# import time
 
 from toopazo_tools.file_folder import FileFolderTools as FFTools
 from toopazo_tools.telemetry import TelemetryLogger
@@ -61,13 +61,13 @@ class ArsIfaceWrapper:
         self.ars.serial_thread_close()
 
 
-class FinalIfaceWrapper:
+class FireflyIfaceWrapper:
     def __init__(self, ars_port, ctrlalloc_port):
         self.ars = ArsIfaceWrapper(ars_port)
         self.esc = EscIfaceWrapper()
         self.ctrlalloc = CtrlAllocIface(ctrlalloc_port)
         self.datetime_0 = datetime.datetime.now()
-        self.delta_arr = delta_arr
+        # self.delta_arr = delta_arr
 
     def get_data(self):
         ars_data = self.ars.get_data()
@@ -77,7 +77,7 @@ class FinalIfaceWrapper:
 
     def close(self):
         self.ars.close()
-        self.esc.close()
+        # self.esc.close()
 
 
 def parse_user_arg(folder):
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     # loop.run_until_complete(mavsdk_run())
 
     telem_folder = parse_user_arg(sys.argv[1])
-    telem_iface = FinalIfaceWrapper(
+    telem_iface = FireflyIfaceWrapper(
         ars_port='/dev/ttyACM0', ctrlalloc_port='/dev/ttyUSB0')
     telem_ext = ".ctrlalloc"
     telem_logger = TelemetryLogger(telem_folder, telem_iface, telem_ext)
