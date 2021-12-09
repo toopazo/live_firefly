@@ -153,12 +153,18 @@ class FireflyMavCmd:
         return mavcmd
 
 
-class FireflyMavshellMsg(Enum):
+class FireflyMavshellEnum(Enum):
     stop_running = 1
     nsh_command = 2
-    # def __init__(self):
-    #     self.stop_running = None
-    #     self.nsh_command = None
+
+
+class FireflyMavshellMsg:
+    def __init__(self, key, val):
+        assert isinstance(key, FireflyMavshellEnum)
+        self.key = key
+        self.val = val
+        # stop_running = 1
+        # nsh_command = 2
 
 
 class FireflyMavshell:
@@ -188,7 +194,7 @@ class FireflyMavshell:
                     fm_msg = _queue.get(block=False)
                     assert isinstance(fm_msg, FireflyMavshellMsg)
                     print(f'A {FireflyMavshellMsg.__name__} was received')
-                    if fm_msg.stop_running:
+                    if fm_msg.key == FireflyMavshellEnum.stop_running and fm_msg.val:
                         time.sleep(self.cmd_rate)
                         mav_serial.close()
                         return
@@ -225,7 +231,7 @@ if __name__ == '__main__':
     fm_queue = queue.Queue()
     fm_thread = fm.start(fm_queue)
     time.sleep(10)
-    fm_queue.put(FireflyMavshellMsg.stop_running)
+    fm_queue.put(FireflyMavshellMsg(FireflyMavshellEnum.stop_running, True))
 
     print('Calling join ..')
     fm_thread.join(timeout=60 * 1)
