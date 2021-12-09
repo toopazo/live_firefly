@@ -186,9 +186,9 @@ if __name__ == '__main__':
 
     cmd_rate = 3
     for i in range(0, 3):
-        if FireflyMavlink.check_timeout(timeout=cmd_rate):
-            nsh_cmd = f'firefly write_delta {i} {i} 1'
-            fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
+        # if FireflyMavlink.check_timeout(timeout=cmd_rate):
+        nsh_cmd = f'firefly write_delta {i} {i} 1'
+        fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
         time.sleep(cmd_rate)
     fm_queue.put(FireflyMavMsg(FireflyMavEnum.stop_running, True))
 
