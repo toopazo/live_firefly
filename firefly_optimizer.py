@@ -14,6 +14,7 @@ class FireflyOptimizer:
         #              "inthtl us, outthtl perc"
         # sensor_header = f"{ars_header}, {esc_header}"
         sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
+        print(sensor_data)
         m1_curr = sensor_data[4]
         m1_rpm = sensor_data[12]
         cost = m1_curr

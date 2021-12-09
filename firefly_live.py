@@ -127,7 +127,7 @@ def test_sensor_iface():
     # time0 = datetime.datetime.now()
     time0 = time.time()
 
-    sampling_period = 1
+    sampling_period = 3
     while True:
         print(SensorIfaceWrapper.get_header())
         log_data = sensor_iface.get_data()
