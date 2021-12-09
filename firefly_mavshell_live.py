@@ -239,7 +239,7 @@ class FireflyMavshell:
 if __name__ == '__main__':
     fm = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
     fm_queue = queue.Queue()
-    fm_thread = threading.Thread(target=fm.run, args=(fm_queue,))
+    fm_thread = threading.Thread(target=fm.run(), args=(fm_queue,))
     fm_thread.start()
     time.sleep(10)
     # fm.close()
