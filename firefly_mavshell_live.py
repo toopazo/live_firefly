@@ -172,15 +172,15 @@ class FireflyMavshell:
         # make sure the shell is started
         mav_serial.write('\n')
 
-        # setup the console, so we can read one char at a time
-        fd_in = sys.stdin.fileno()
-        old_attr = termios.tcgetattr(fd_in)
-        new_attr = termios.tcgetattr(fd_in)
-        new_attr[3] = new_attr[3] & ~termios.ECHO  # lflags
-        new_attr[3] = new_attr[3] & ~termios.ICANON
+        # # setup the console, so we can read one char at a time
+        # fd_in = sys.stdin.fileno()
+        # old_attr = termios.tcgetattr(fd_in)
+        # new_attr = termios.tcgetattr(fd_in)
+        # new_attr[3] = new_attr[3] & ~termios.ECHO  # lflags
+        # new_attr[3] = new_attr[3] & ~termios.ICANON
 
         try:
-            termios.tcsetattr(fd_in, termios.TCSANOW, new_attr)
+            # termios.tcsetattr(fd_in, termios.TCSANOW, new_attr)
             cur_line = ''
             command_history = []
             cur_history_index = 0
@@ -193,19 +193,17 @@ class FireflyMavshell:
 
             next_heartbeat_time = timer()
 
-            cnt = 0
             while True:
                 try:
                     fm_msg = _queue.get()
                     assert isinstance(fm_msg, FireflyMavshellMsg)
                     if not fm_msg.keep_running:
                         mav_serial.close()
-                        termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
+                        # termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
                         return
                 except queue.Empty:
                     pass
 
-                cnt = cnt + 1
                 if FireflyMavCmd.check_timeout(timeout=self.cmd_rate):
                     mavcmd = FireflyMavCmd.next_mavcmd()
                     mav_serial.write(mavcmd + '\n')
@@ -229,7 +227,7 @@ class FireflyMavshell:
         except KeyboardInterrupt:
             mav_serial.close()
         finally:
-            termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
+            # termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
 
     def close(self):
         print('Calling close() ..')
