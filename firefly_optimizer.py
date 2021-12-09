@@ -13,9 +13,15 @@ class FireflyOptimizer:
         #              "voltage V, current A, angVel rpm, temp degC, warning, "\
         #              "inthtl us, outthtl perc"
         # sensor_header = f"{ars_header}, {esc_header}"
-        sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
-        print(sensor_data)
-        m1_curr = sensor_data[4]
-        m1_rpm = sensor_data[12]
+        parsed_data = []
+        for e in sensor_data.split(','):
+            try:
+                float(e.strip())
+            except ValueError:
+                parsed_data.append(e)
+        # sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
+        print(f'parsed_data {parsed_data}')
+        m1_curr = parsed_data[4]
+        m1_rpm = parsed_data[12]
         cost = m1_curr
         return cost
