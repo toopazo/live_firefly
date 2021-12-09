@@ -207,6 +207,7 @@ class FireflyMavshell:
                     )
                     next_heartbeat_time = heartbeat_time + 1
             mav_serial.close()
+            return
 
         except serial.serialutil.SerialException as e:
             print(e)
@@ -216,6 +217,7 @@ class FireflyMavshell:
             termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
 
     def close(self):
+        print('Calling close() ..')
         self.keep_running = False
 
 
@@ -223,7 +225,7 @@ if __name__ == '__main__':
     fm = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
     fm_thr = threading.Thread(target=fm.run())
     fm_thr.start()
-    time.sleep(30)
+    time.sleep(20)
     fm.close()
     print('waiting to close ..')
     fm_thr.join(timeout=60*1)
