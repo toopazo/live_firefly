@@ -8,7 +8,9 @@ import sys
 # import select
 import termios
 # import time
+import time
 from timeit import default_timer as timer
+import threading
 
 try:
     from pymavlink import mavutil
@@ -152,41 +154,13 @@ class FireflyMavCmd:
 
 class FireflyMavshell:
     def __init__(self, port, baudrate):
-        # parser = ArgumentParser(description=__doc__)
-        # help_msg = 'Mavlink port name: serial: DEVICE[,BAUD], udp: IP:PORT, ' \
-        #            'tcp: tcp:IP:PORT. Eg: /dev/ttyUSB0 or 0.0.0.0:14550. ' \
-        #            'Auto-detect serial if not given.'
-        # parser.add_argument(
-        #     'port', metavar='PORT', nargs='?', default=None,
-        #     help=help_msg)
-        # parser.add_argument(
-        #     "--baudrate", "-b", dest="baudrate", type=int,
-        #     help="Mavlink port baud rate (default=57600)", default=57600)
-        # args = parser.parse_args()
-        #
-        # if args.port is None:
-        #     if sys.platform == "darwin":
-        #         args.port = "/dev/tty.usbmodem1"
-        #     else:
-        #         serial_list = mavutil.auto_detect_serial(
-        #             preferred_list=[
-        #                 '*FTDI*', "*Arduino_Mega_2560*", "*3D_Robotics*",
-        #                 "*USB_to_UART*", '*PX4*', '*FMU*', "*Gumstix*"]
-        #         )
-        #
-        #         if len(serial_list) == 0:
-        #             print("Error: no serial connection found")
-        #             return
-        #
-        #         if len(serial_list) > 1:
-        #             print('Auto-detected serial ports are:')
-        #             for port in serial_list:
-        #                 print(" {:}".format(port))
-        #         print('Using port {:}'.format(serial_list[0]))
-        #         args.port = serial_list[0].device
+        self.port = port
+        self.baudrate = baudrate
+        self.keep_running = True
 
-        print(f"[FireflyMavshell] Connecting to MAVLINK at {port} {baudrate} ..")
-        mav_serial = MavlinkSerialPort(port, baudrate, devnum=10)
+    def run(self):
+        print(f"[FireflyMavshell] Connecting to MAVLINK at {self.port} {self.baudrate} ..")
+        mav_serial = MavlinkSerialPort(self.port, self.baudrate, devnum=10)
 
         # make sure the shell is started
         mav_serial.write('\n')
@@ -213,7 +187,7 @@ class FireflyMavshell:
             next_heartbeat_time = timer()
 
             cnt = 0
-            while True:
+            while self.keep_running:
                 cnt = cnt + 1
                 if FireflyMavCmd.check_timeout():
                     mavcmd = FireflyMavCmd.next_mavcmd()
@@ -232,17 +206,24 @@ class FireflyMavshell:
                         mavutil.mavlink.MAV_AUTOPILOT_GENERIC, 0, 0, 0
                     )
                     next_heartbeat_time = heartbeat_time + 1
+            mav_serial.close()
 
         except serial.serialutil.SerialException as e:
             print(e)
-
         except KeyboardInterrupt:
             mav_serial.close()
-
         finally:
             termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
 
+    def close(self):
+        self.keep_running = False
+
 
 if __name__ == '__main__':
-    fmav = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
-
+    fm = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
+    fm_thr = threading.Thread(target=fm.run())
+    fm_thr.start()
+    time.sleep(30)
+    fm.close()
+    print('waiting to close ..')
+    fm_thr.join(timeout=60*1)
