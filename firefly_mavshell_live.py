@@ -8,8 +8,10 @@ import datetime
 # import time
 import time
 from timeit import default_timer as timer
+
 import threading
 import queue
+from enum import Enum
 
 try:
     from pymavlink import mavutil
@@ -151,9 +153,12 @@ class FireflyMavCmd:
         return mavcmd
 
 
-class FireflyMavshellMsg:
-    def __init__(self, keep_running):
-        self.keep_running = keep_running
+class FireflyMavshellMsg(Enum):
+    stop_running = 1
+    nsh_command = 2
+    # def __init__(self):
+    #     self.stop_running = None
+    #     self.nsh_command = None
 
 
 class FireflyMavshell:
@@ -183,7 +188,7 @@ class FireflyMavshell:
                     fm_msg = _queue.get(block=False)
                     assert isinstance(fm_msg, FireflyMavshellMsg)
                     print(f'A {FireflyMavshellMsg.__name__} was received')
-                    if not fm_msg.keep_running:
+                    if fm_msg.stop_running:
                         time.sleep(self.cmd_rate)
                         mav_serial.close()
                         return
@@ -220,7 +225,7 @@ if __name__ == '__main__':
     fm_queue = queue.Queue()
     fm_thread = fm.start(fm_queue)
     time.sleep(10)
-    fm_queue.put(FireflyMavshellMsg(keep_running=False))
+    fm_queue.put(FireflyMavshellMsg.stop_running)
 
     print('Calling join ..')
     fm_thread.join(timeout=60 * 1)
