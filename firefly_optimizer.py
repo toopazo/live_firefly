@@ -1,4 +1,4 @@
-
+import pprint
 
 class FireflyOptimizer:
     @staticmethod
@@ -83,6 +83,7 @@ class FireflyOptimizer:
     def sensor_data_to_cost_fnct(sensor_data):
         parsed_data = FireflyOptimizer.parse_sensor_data(sensor_data)
         # sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
-        print(f'parsed_data {parsed_data}')
+        # print(f'parsed_data {parsed_data}')
+        pprint.pprint(parsed_data)
         cost = parsed_data['mills']
         return cost
