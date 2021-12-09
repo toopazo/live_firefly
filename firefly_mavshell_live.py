@@ -4,9 +4,7 @@
 from __future__ import print_function
 
 import datetime
-# import sys
 # import select
-# import termios
 # import time
 import time
 from timeit import default_timer as timer
@@ -162,8 +160,12 @@ class FireflyMavshell:
     def __init__(self, port, baudrate):
         self.port = port
         self.baudrate = baudrate
-        self.keep_running = True
         self.cmd_rate = 3
+
+    def start(self, _queue):
+        _thread = threading.Thread(target=self.run, args=(_queue,))
+        _thread.start()
+        return _thread
 
     def run(self, _queue):
         print(f"[FireflyMavshell] Connecting to MAVLINK at {self.port} {self.baudrate} ..")
@@ -173,25 +175,7 @@ class FireflyMavshell:
         # make sure the shell is started
         mav_serial.write('\n')
 
-        # # setup the console, so we can read one char at a time
-        # fd_in = sys.stdin.fileno()
-        # old_attr = termios.tcgetattr(fd_in)
-        # new_attr = termios.tcgetattr(fd_in)
-        # new_attr[3] = new_attr[3] & ~termios.ECHO  # lflags
-        # new_attr[3] = new_attr[3] & ~termios.ICANON
-
         try:
-            # termios.tcsetattr(fd_in, termios.TCSANOW, new_attr)
-            # cur_line = ''
-            # command_history = []
-            # cur_history_index = 0
-
-            # def erase_last_n_chars(N):
-            #     if N == 0: return
-            #     CURSOR_BACK_N = '\x1b[' + str(N) + 'D'
-            #     ERASE_END_LINE = '\x1b[K'
-            #     sys.stdout.write(CURSOR_BACK_N + ERASE_END_LINE)
-
             next_heartbeat_time = timer()
 
             while True:
@@ -200,7 +184,6 @@ class FireflyMavshell:
                     assert isinstance(fm_msg, FireflyMavshellMsg)
                     if not fm_msg.keep_running:
                         mav_serial.close()
-                        # termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
                         return
                 except queue.Empty:
                     pass
@@ -208,14 +191,10 @@ class FireflyMavshell:
                 if FireflyMavCmd.check_timeout(timeout=self.cmd_rate):
                     mavcmd = FireflyMavCmd.next_mavcmd()
                     mav_serial.write(mavcmd + '\n')
-                    # print(f'mav_serial.write .. {mavcmd}')
                     print(mavcmd)
 
                 data = mav_serial.read(4096)
                 if data and len(data) > 0:
-                    # sys.stdout.write(data)
-                    # sys.stdout.flush()
-                    # print(f'mav_serial.read .. {data}')
                     print(data, end='')
 
                 # handle heartbeat sending
@@ -231,22 +210,15 @@ class FireflyMavshell:
             print(e)
         except KeyboardInterrupt:
             mav_serial.close()
-        finally:
-            # termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
-            pass
-
-    def close(self):
-        print('Calling close() ..')
-        self.keep_running = False
 
 
 if __name__ == '__main__':
     fm = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
+
     fm_queue = queue.Queue()
-    fm_thread = threading.Thread(target=fm.run, args=(fm_queue,))
-    fm_thread.start()
+    fm_thread = fm.start(fm_queue)
     time.sleep(10)
-    # fm.close()
     fm_queue.put(FireflyMavshellMsg(keep_running=False))
-    print('waiting to close ..')
+
+    print('Calling join ..')
     fm_thread.join(timeout=60 * 1)
