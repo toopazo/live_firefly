@@ -196,7 +196,7 @@ class FireflyMavshell:
             cnt = 0
             while True:
                 try:
-                    fm_msg = _queue.get(timeout=1)
+                    fm_msg = _queue.get()
                     assert isinstance(fm_msg, FireflyMavshellMsg)
                     if not fm_msg.keep_running:
                         mav_serial.close()
