@@ -46,12 +46,12 @@ class FireflyOptimizer:
             'cur3': parsed_data[6],
             'cur4': parsed_data[7],
             'cur5': parsed_data[8],
-            'cur6': parsed_data[8],
+            'cur6': parsed_data[9],
             'cur7': parsed_data[10],
             'cur8': parsed_data[11],
             'rpm1': parsed_data[12],
             'rpm2': parsed_data[13],
-            'rpm': parsed_data[14],
+            'rpm3': parsed_data[14],
             'rpm4': parsed_data[15],
             'rpm5': parsed_data[16],
             'rpm6': parsed_data[17],
@@ -59,19 +59,20 @@ class FireflyOptimizer:
             'rpm8': parsed_data[19],
         }
         for i in range(0, 8):
-            indx = 20 + 8*i
+            indx = 20 + 9*i
             escid = str(10+i+1)
             print(f'indx {indx} escid {escid}')
 
             try:
-                parsed_data2[f'time_{escid}'] = parsed_data[indx+0]   # 20 + 8*0 = 20, # 20 + 8*1 = 28
-                parsed_data2[f'voltage_{escid}'] = parsed_data[indx+1]
-                parsed_data2[f'current_{escid}'] = parsed_data[indx+2]
-                parsed_data2[f'angVel_{escid}'] = parsed_data[indx+3]
-                parsed_data2[f'temp_{escid}'] = parsed_data[indx+4]
-                parsed_data2[f'warning_{escid}'] = parsed_data[indx+5]
-                parsed_data2[f'inthtl_{escid}'] = parsed_data[indx+6]
-                parsed_data2[f'outthtl_{escid}'] = parsed_data[indx+7]
+                parsed_data2[f'time_{escid}'] = parsed_data[indx+0]   # 20 + 9*0 = 20, # 20 + 9*1 = 29
+                parsed_data2[f'escid_{escid}'] = parsed_data[indx + 1]
+                parsed_data2[f'voltage_{escid}'] = parsed_data[indx+2]
+                parsed_data2[f'current_{escid}'] = parsed_data[indx+3]
+                parsed_data2[f'angVel_{escid}'] = parsed_data[indx+4]
+                parsed_data2[f'temp_{escid}'] = parsed_data[indx+5]
+                parsed_data2[f'warning_{escid}'] = parsed_data[indx+6]
+                parsed_data2[f'inthtl_{escid}'] = parsed_data[indx+7]
+                parsed_data2[f'outthtl_{escid}'] = parsed_data[indx+8]
             except IndexError:
                 pass
 
