@@ -244,5 +244,5 @@ class FireflyMavshell:
 
 
 if __name__ == '__main__':
-    fmav = FireflyMavshell(port='/dev/ttyACM0', baudrate=57600)
+    fmav = FireflyMavshell(port='/dev/ttyACM1', baudrate=57600)
 
