@@ -62,14 +62,18 @@ class FireflyOptimizer:
             indx = 20 + 8*i
             escid = str(10+i+1)
             print(f'indx {indx} escid {escid}')
-            parsed_data2[f'time_{escid}'] = parsed_data[indx+0]   # 20 + 8*0 = 20, # 20 + 8*1 = 28
-            parsed_data2[f'voltage_{escid}'] = parsed_data[indx+1]
-            parsed_data2[f'current_{escid}'] = parsed_data[indx+2]
-            parsed_data2[f'angVel_{escid}'] = parsed_data[indx+3]
-            parsed_data2[f'temp_{escid}'] = parsed_data[indx+4]
-            parsed_data2[f'warning_{escid}'] = parsed_data[indx+5]
-            parsed_data2[f'inthtl_{escid}'] = parsed_data[indx+6]
-            parsed_data2[f'outthtl_{escid}'] = parsed_data[indx+7]
+
+            try:
+                parsed_data2[f'time_{escid}'] = parsed_data[indx+0]   # 20 + 8*0 = 20, # 20 + 8*1 = 28
+                parsed_data2[f'voltage_{escid}'] = parsed_data[indx+1]
+                parsed_data2[f'current_{escid}'] = parsed_data[indx+2]
+                parsed_data2[f'angVel_{escid}'] = parsed_data[indx+3]
+                parsed_data2[f'temp_{escid}'] = parsed_data[indx+4]
+                parsed_data2[f'warning_{escid}'] = parsed_data[indx+5]
+                parsed_data2[f'inthtl_{escid}'] = parsed_data[indx+6]
+                parsed_data2[f'outthtl_{escid}'] = parsed_data[indx+7]
+            except IndexError:
+                pass
 
         # sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
         # print(f'parsed_data {parsed_data2}')
