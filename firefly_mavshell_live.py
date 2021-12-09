@@ -195,15 +195,15 @@ class FireflyMavshell:
 
             cnt = 0
             while True:
-                try:
-                    fm_msg = _queue.get()
-                    assert isinstance(fm_msg, FireflyMavshellMsg)
-                    if not fm_msg.keep_running:
-                        mav_serial.close()
-                        termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
-                        return
-                except queue.Empty:
-                    pass
+                # try:
+                #     fm_msg = _queue.get()
+                #     assert isinstance(fm_msg, FireflyMavshellMsg)
+                #     if not fm_msg.keep_running:
+                #         mav_serial.close()
+                #         termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
+                #         return
+                # except queue.Empty:
+                #     pass
 
                 cnt = cnt + 1
                 if FireflyMavCmd.check_timeout(timeout=self.cmd_rate):
