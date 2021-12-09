@@ -6,16 +6,15 @@ import sys
 # import time
 # import datetime
 import time
+import queue
 
 from toopazo_tools.file_folder import FileFolderTools as FFTools
 from toopazo_tools.telemetry import TelemetryLogger
+from firefly_mavlink_live import FireflyMavEnum, FireflyMavMsg, FireflyMavlink
 
 from live_ars.ars_interface import ArsIface
 from live_esc.kde_uas85uvc.kdecan_interface import KdeCanIface
 from ctrlalloc_interface import CtrlAllocIface
-
-# from mavsdk import System
-# import asyncio
 
 
 class EscIfaceWrapper:
@@ -79,6 +78,20 @@ class FireflyIfaceWrapper:
         self.ars.close()
         # self.esc.close()
 
+    @staticmethod
+    def get_header():
+        fields = ["sps", "mills", "secs", "dtmills",
+                  "cur1", "cur2", "cur3", "cur4",
+                  "cur5", "cur6", "cur7", "cur8",
+                  "rpm1", "rpm2", "rpm3", "rpm4",
+                  "rpm5", "rpm6", "rpm7", "rpm8"]
+        ars_header = ", ".join(fields)
+        esc_header = "time s, escid, " \
+                     "voltage V, current A, angVel rpm, temp degC, warning, " \
+                     "inthtl us, outthtl perc"
+        firefly_header = f"{ars_header}, {esc_header}"
+        return firefly_header
+
 
 def parse_user_arg(folder):
     folder = FFTools.full_path(folder)
@@ -92,46 +105,37 @@ def parse_user_arg(folder):
     return folder
 
 
-# async def mavsdk_run():
-#     drone = System()
-#     await drone.connect(system_address="serial:///dev/ttyACM0:115200")
-#     print("Waiting for drone ..")
-#     async for state in drone.core.connection_state():
-#         if state.is_connected:
-#             # arg = drone.telemetry.actuator_output_status()
-#             arg = drone.info.get_identification()
-#             print(f"Drone discovered : {arg}")
-#             # print(f"Drone discovered with UUID: {state.uuid}")
-#             break
+def test_mavlink_shell():
+    fm = FireflyMavlink(port='/dev/ttyACM1', baudrate=57600)
+
+    fm_queue = queue.Queue()
+    fm_thread = fm.start(fm_queue)
+
+    cmd_rate = 3
+    for i in range(0, 3):
+        # if FireflyMavlink.check_timeout(timeout=cmd_rate):
+        nsh_cmd = f'firefly write_delta {i} {i} 1'
+        fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
+        time.sleep(cmd_rate)
+    fm_queue.put(FireflyMavMsg(FireflyMavEnum.stop_running, True))
+
+    print('Calling join ..')
+    fm_thread.join(timeout=60 * 1)
+
+
+def test_fireflyiface():
+    firefly_iface = FireflyIfaceWrapper(
+        ars_port='/dev/ttyACM0', ctrlalloc_port='/dev/ttyUSB0')
+    time0 = datetime.datetime.now()
+
+    _sampling_period = 1
+    while True:
+        print(FireflyIfaceWrapper.get_header())
+        log_data = firefly_iface.get_data()
+        print(log_data)
+        TelemetryLogger.busy_waiting(
+            time0, _sampling_period, _sampling_period / 8)
 
 
 if __name__ == '__main__':
-    # loop = asyncio.get_event_loop()
-    # loop.run_until_complete(mavsdk_run())
-
-    telem_folder = parse_user_arg(sys.argv[1])
-    telem_iface = FireflyIfaceWrapper(
-        ars_port='/dev/ttyACM0', ctrlalloc_port='/dev/ttyUSB0')
-    telem_ext = ".ctrlalloc"
-    telem_logger = TelemetryLogger(telem_folder, telem_iface, telem_ext)
-
-    sampling_period = 0.1
-    # data = {
-    #     'header': {
-    #         'sps': 200, 'mills': 9000, 'secs': 9.0, 'dtmills': 9000
-    #     },
-    #     'data': [0, 0, 0, 0, 0, 0, 0, 0, 510, 520, 507, 548, 10, 14,
-    #              17, 19]
-    # }
-    fields = ["sps", "mills", "secs", "dtmills",
-              "cur1", "cur2", "cur3", "cur4",
-              "cur5", "cur6", "cur7", "cur8",
-              "rpm1", "rpm2", "rpm3", "rpm4",
-              "rpm5", "rpm6", "rpm7", "rpm8"]
-    ars_header = ", ".join(fields)
-    esc_header = "time s, escid, "\
-                 "voltage V, current A, angVel rpm, temp degC, warning, " \
-                 "inthtl us, outthtl perc"
-    log_header = f"{ars_header}, {esc_header}"
-    telem_logger.live_data(sampling_period, log_header)
-
+    test_fireflyiface()
