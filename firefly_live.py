@@ -133,7 +133,6 @@ def test_sensor_iface():
     while True:
         print(SensorIfaceWrapper.get_header())
         log_data = sensor_iface.get_data()
-        print(log_data)
         print(f'log_data {log_data}')
         fcost = FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data=log_data)
         print(f'fcost {fcost}')
