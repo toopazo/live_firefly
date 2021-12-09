@@ -208,13 +208,15 @@ class FireflyMavshell:
                 if FireflyMavCmd.check_timeout(timeout=self.cmd_rate):
                     mavcmd = FireflyMavCmd.next_mavcmd()
                     mav_serial.write(mavcmd + '\n')
-                    print(f'mav_serial.write .. {mavcmd}')
+                    # print(f'mav_serial.write .. {mavcmd}')
+                    print(mavcmd)
 
                 data = mav_serial.read(4096)
                 if data and len(data) > 0:
                     # sys.stdout.write(data)
                     # sys.stdout.flush()
-                    print(f'mav_serial.read .. {data}')
+                    # print(f'mav_serial.read .. {data}')
+                    print(data, end='')
 
                 # handle heartbeat sending
                 heartbeat_time = timer()
