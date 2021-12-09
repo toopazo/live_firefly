@@ -228,6 +228,7 @@ class FireflyMavshell:
             mav_serial.close()
         finally:
             # termios.tcsetattr(fd_in, termios.TCSADRAIN, old_attr)
+            pass
 
     def close(self):
         print('Calling close() ..')
