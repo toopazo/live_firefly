@@ -84,7 +84,5 @@ class FireflyOptimizer:
         parsed_data = FireflyOptimizer.parse_sensor_data(sensor_data)
         # sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
         print(f'parsed_data {parsed_data}')
-        m1_curr = parsed_data[4]
-        m1_rpm = parsed_data[12]
-        cost = m1_curr
+        cost = parsed_data['mills']
         return cost
