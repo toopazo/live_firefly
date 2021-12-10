@@ -182,8 +182,7 @@ def test_optimizer():
 
             cost_m38 = fcost[3 - 1] + fcost[8 - 1]
             cost_m47 = fcost[4 - 1] + fcost[7 - 1]
-            print(f'cost_m38 {cost_m38}')
-            print(f'cost_m47 {cost_m47}')
+            print(f'cnt_samples {cnt_samples}, cost_m38 {cost_m38}, cost_m47 {cost_m47}')
             cost_m38_arr.append(cost_m38)
             cost_m47_arr.append(cost_m47)
 
@@ -204,7 +203,6 @@ def test_optimizer():
                 nsh_delta_prev = nsh_delta
 
                 nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
-                print(nsh_cmd)
                 fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
 
                 cost_m38_arr = []
