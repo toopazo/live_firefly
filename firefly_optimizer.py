@@ -79,6 +79,53 @@ class FireflyOptimizer:
             'cur_14': parsed_data_arr[14],  # cur3
             'cur_17': parsed_data_arr[15],  # cur4
         }
+        # Dec9 19:39
+
+        # pwm test -c 1 -p 1000
+        # angVel_11     OK
+        # current_11    channel is dead
+        # voltage_11    OK
+
+        # pwm test -c 2 -p 1000
+        # angVel_12     OK
+        # current_12    channel is dead
+        # voltage_12    OK
+
+        # pwm test -c 3 -p 1000
+        # angVel_13     OK
+        # current_13    channel is dead     corresponds to cur1
+        # voltage_13    OK
+
+        # pwm test -c 4 -p 1000
+        # angVel_14     OK
+        # current_14    channel is dead     corresponds to cur3
+        # voltage_14    OK
+
+        # pwm test -c 5 -p 1000
+        # angVel_15     OK
+        # current_15    channel is dead
+        # voltage_15    OK
+
+        # pwm test -c 6 -p 1000
+        # angVel_16     OK
+        # current_16    channel is dead
+        # voltage_16    OK
+
+        # pwm test -c 7 -p 1000
+        # angVel_17     OK
+        # current_17    channel is dead     corresponds to cur4
+        # voltage_17    OK
+
+        # pwm test -c 8 -p 1000
+        # angVel_18     OK
+        # current_18    channel is dead     corresponds to cur2
+        # voltage_18    OK
+
+        # cur1 corresponds to motor3
+        # cur2 corresponds to motor8
+        # cur3 corresponds to motor4
+        # cur4 corresponds to motor7
+
         num_rotors = 8
         for i in range(0, num_rotors):
             indx = 20 + 9*i
@@ -114,54 +161,8 @@ class FireflyOptimizer:
             escid = str(10 + i + 1)
             try:
                 # cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
-                cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
+                cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'curr_{escid}']
 
-                # Dec9 19:39
-
-                # pwm test -c 1 -p 1000
-                # angVel_11     OK
-                # current_11    channel is dead
-                # voltage_11    OK
-
-                # pwm test -c 2 -p 1000
-                # angVel_12     OK
-                # current_12    channel is dead
-                # voltage_12    OK
-
-                # pwm test -c 3 -p 1000
-                # angVel_13     OK
-                # current_13    channel is dead     corresponds to cur1
-                # voltage_13    OK
-
-                # pwm test -c 4 -p 1000
-                # angVel_14     OK
-                # current_14    channel is dead     corresponds to cur3
-                # voltage_14    OK
-
-                # pwm test -c 5 -p 1000
-                # angVel_15     OK
-                # current_15    channel is dead
-                # voltage_15    OK
-
-                # pwm test -c 6 -p 1000
-                # angVel_16     OK
-                # current_16    channel is dead
-                # voltage_16    OK
-
-                # pwm test -c 7 -p 1000
-                # angVel_17     OK
-                # current_17    channel is dead     corresponds to cur4
-                # voltage_17    OK
-
-                # pwm test -c 8 -p 1000
-                # angVel_18     OK
-                # current_18    channel is dead     corresponds to cur2
-                # voltage_18    OK
-
-                # cur1 corresponds to motor3
-                # cur2 corresponds to motor8
-                # cur3 corresponds to motor4
-                # cur4 corresponds to motor7
             except KeyError:
                 cost = None
             cost_arr.append(cost)
