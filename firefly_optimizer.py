@@ -7,8 +7,8 @@ class FireflyOptimizer:
     def filter_parsed_data(parsed_data):
         old_dict = parsed_data
         your_keys = [
-            'rpm1', 'rpm2', 'rpm3', 'rpm4', 'rpm5', 'rpm6', 'rpm7', 'rpm8',
-            'cur1', 'cur2', 'cur3', 'cur4', 'cur5', 'cur6', 'cur7', 'cur8',
+            'rpm_13', 'rpm_18', 'rpm_14', 'rpm_17',
+            'cur_13', 'cur_18', 'cur_14', 'cur_17'
         ]
         num_rotors = 8
         for i in range(0, num_rotors):
@@ -69,6 +69,15 @@ class FireflyOptimizer:
             'cur6': parsed_data_arr[17],
             'cur7': parsed_data_arr[18],
             'cur8': parsed_data_arr[19],
+            # adding reordered data
+            'rpm_13': parsed_data_arr[4],   # rmp1
+            'rpm_18': parsed_data_arr[5],   # rmp2
+            'rpm_14': parsed_data_arr[6],   # rmp3
+            'rpm_17': parsed_data_arr[7],   # rmp4
+            'cur_13': parsed_data_arr[12],  # cur1
+            'cur_18': parsed_data_arr[13],  # cur2
+            'cur_14': parsed_data_arr[14],  # cur3
+            'cur_17': parsed_data_arr[15],  # cur4
         }
         num_rotors = 8
         for i in range(0, num_rotors):
