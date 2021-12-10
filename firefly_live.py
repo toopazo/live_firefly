@@ -199,7 +199,7 @@ def test_optimizer():
                 print(f'cnt_samples {cnt_samples}, initial nsh_delta {nsh_delta}')
 
                 # Max rate
-                max_delta_change = 0.01
+                max_delta_change = 0.05
                 if (nsh_delta - nsh_delta_prev) >= +max_delta_change:
                     nsh_delta = nsh_delta_prev + max_delta_change
                 if (nsh_delta - nsh_delta_prev) <= -max_delta_change:
@@ -209,6 +209,8 @@ def test_optimizer():
                     nsh_delta = +0.5
                 if nsh_delta <= -0.5:
                     nsh_delta = -0.5
+
+                print(f'cnt_samples {cnt_samples}, nsh_delta {nsh_delta}, nsh_delta_prev {nsh_delta_prev}')
 
                 nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
                 fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
