@@ -160,9 +160,9 @@ def test_optimizer():
     fm_queue = queue.Queue()
     fm_thread = fm.start(fm_queue)
 
-    cmd_period = 5
+    cmd_period = 10
     # sampling_period = 0.3
-    sampling_period = 1
+    sampling_period = 0.1
     cost_m38_arr = []
     cost_m47_arr = []
     avg_cost_m38 = 0
@@ -199,7 +199,7 @@ def test_optimizer():
                 print(f'cnt_samples {cnt_samples}, initial nsh_delta {nsh_delta}')
 
                 # Max rate
-                max_delta_change = 0.1
+                max_delta_change = 0.01
                 if (nsh_delta - nsh_delta_prev) >= +max_delta_change:
                     nsh_delta = nsh_delta_prev + max_delta_change
                 if (nsh_delta - nsh_delta_prev) <= -max_delta_change:
