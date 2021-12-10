@@ -177,11 +177,13 @@ def test_optimizer():
 
             log_data = sensor_iface.get_data()
             fcost = FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data=log_data)
-            print(f'fcost {[round(e, 4) for e in fcost]}')
+            # print(f'fcost {[round(e, 4) for e in fcost]}')
             TelemetryLogger.busy_waiting(time0, sampling_period, sampling_period / 8)
 
             cost_m38 = fcost[3 - 1] + fcost[8 - 1]
             cost_m47 = fcost[4 - 1] + fcost[7 - 1]
+            print(f'cost_m38 {cost_m38}')
+            print(f'cost_m47 {cost_m47}')
             cost_m38_arr.append(cost_m38)
             cost_m47_arr.append(cost_m47)
 
