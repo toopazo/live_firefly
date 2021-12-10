@@ -205,10 +205,11 @@ def test_optimizer():
                 if (nsh_delta - nsh_delta_prev) <= -max_delta_change:
                     nsh_delta = nsh_delta_prev - max_delta_change
                 # Max abs ranges
-                if nsh_delta >= +0.5:
-                    nsh_delta = +0.5
-                if nsh_delta <= -0.5:
-                    nsh_delta = -0.5
+                max_abs_val = 0.3
+                if nsh_delta >= +max_abs_val:
+                    nsh_delta = +max_abs_val
+                if nsh_delta <= -max_abs_val:
+                    nsh_delta = -max_abs_val
 
                 print(f'cnt_samples {cnt_samples}, nsh_delta {nsh_delta}, nsh_delta_prev {nsh_delta_prev}')
 
