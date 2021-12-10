@@ -187,19 +187,23 @@ def test_optimizer():
             cost_m47_arr.append(cost_m47)
 
             if cnt_samples >= num_samples:
-                k = 0.1
+                k = 1 * (1 / 10000)
                 avg_cost_m38 = np.average(cost_m38_arr)
                 avg_cost_m47 = np.average(cost_m47_arr)
                 nsh_delta = nsh_delta - k * (avg_cost_m38 + avg_cost_m47)
-                if nsh_delta >= +0.5:
-                    nsh_delta = +0.5
-                if nsh_delta <= -0.5:
-                    nsh_delta = -0.5
+                print(f'cnt_samples {cnt_samples}, initial nsh_delta {nsh_delta}')
+
+                # Max rate
                 max_delta_change = 0.1
                 if (nsh_delta - nsh_delta_prev) >= +max_delta_change:
                     nsh_delta = nsh_delta_prev + max_delta_change
                 if (nsh_delta - nsh_delta_prev) <= -max_delta_change:
                     nsh_delta = nsh_delta_prev - max_delta_change
+                # Max abs ranges
+                if nsh_delta >= +0.5:
+                    nsh_delta = +0.5
+                if nsh_delta <= -0.5:
+                    nsh_delta = -0.5
                 nsh_delta_prev = nsh_delta
 
                 nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
