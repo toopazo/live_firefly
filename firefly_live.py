@@ -161,18 +161,19 @@ def test_optimizer():
     fm_thread = fm.start(fm_queue)
 
     cmd_period = 3
-    sampling_period = 0.3
+    # sampling_period = 0.3
+    sampling_period = 1
     cost_m38_arr = []
     cost_m47_arr = []
     avg_cost_m38 = 0
     avg_cost_m47 = 0
     num_samples = np.ceil(cmd_period/sampling_period)
+    cnt_samples = 0
     nsh_delta = 0
     nsh_delta_prev = 0
-    cnt = 0
     try:
         while True:
-            cnt = cnt + 1
+            cnt_samples = cnt_samples + 1
 
             log_data = sensor_iface.get_data()
             fcost = FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data=log_data)
@@ -184,7 +185,7 @@ def test_optimizer():
             cost_m38_arr.append(cost_m38)
             cost_m47_arr.append(cost_m47)
 
-            if cnt >= num_samples:
+            if cnt_samples >= num_samples:
                 k = 0.1
                 avg_cost_m38 = np.average(cost_m38_arr)
                 avg_cost_m47 = np.average(cost_m47_arr)
@@ -206,6 +207,7 @@ def test_optimizer():
 
                 cost_m38_arr = []
                 cost_m47_arr = []
+                cnt_samples = 0
 
             optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}'
             log_data = f'{log_data}, {fcost}, {optim_data}'
