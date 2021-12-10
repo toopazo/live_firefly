@@ -7,8 +7,8 @@ class FireflyOptimizer:
     def filter_parsed_data(parsed_data):
         old_dict = parsed_data
         your_keys = [
-            'cur1', 'cur2', 'cur3', 'cur4', 'cur5', 'cur6', 'cur7', 'cur8',
             'rpm1', 'rpm2', 'rpm3', 'rpm4', 'rpm5', 'rpm6', 'rpm7', 'rpm8',
+            'cur1', 'cur2', 'cur3', 'cur4', 'cur5', 'cur6', 'cur7', 'cur8',
         ]
         num_rotors = 8
         for i in range(0, num_rotors):
@@ -28,11 +28,13 @@ class FireflyOptimizer:
 
     @staticmethod
     def parse_sensor_data(sensor_data):
-        # fields = ["sps", "mills", "secs", "dtmills",
-        #           "cur1", "cur2", "cur3", "cur4",
-        #           "cur5", "cur6", "cur7", "cur8",
-        #           "rpm1", "rpm2", "rpm3", "rpm4",
-        #           "rpm5", "rpm6", "rpm7", "rpm8"]
+        # fields = [
+        #     "sps", "mills", "secs", "dtmills",
+        #     "rpm1", "rpm2", "rpm3", "rpm4",
+        #     "rpm5", "rpm6", "rpm7", "rpm8",
+        #     "cur1", "cur2", "cur3", "cur4",
+        #     "cur5", "cur6", "cur7", "cur8"
+        # ]
         # ars_header = ", ".join(fields)
         # esc_header = "time s, escid, " \
         #              "voltage V, current A, angVel rpm, temp degC, warning, " \
@@ -51,22 +53,22 @@ class FireflyOptimizer:
             'mills': parsed_data_arr[1],
             'secs': parsed_data_arr[2],
             'dtmills': parsed_data_arr[3],
-            'cur1': parsed_data_arr[4],
-            'cur2': parsed_data_arr[5],
-            'cur3': parsed_data_arr[6],
-            'cur4': parsed_data_arr[7],
-            'cur5': parsed_data_arr[8],
-            'cur6': parsed_data_arr[9],
-            'cur7': parsed_data_arr[10],
-            'cur8': parsed_data_arr[11],
-            'rpm1': parsed_data_arr[12],
-            'rpm2': parsed_data_arr[13],
-            'rpm3': parsed_data_arr[14],
-            'rpm4': parsed_data_arr[15],
-            'rpm5': parsed_data_arr[16],
-            'rpm6': parsed_data_arr[17],
-            'rpm7': parsed_data_arr[18],
-            'rpm8': parsed_data_arr[19],
+            'rpm1': parsed_data_arr[4],
+            'rpm2': parsed_data_arr[5],
+            'rpm3': parsed_data_arr[6],
+            'rpm4': parsed_data_arr[7],
+            'rpm5': parsed_data_arr[8],
+            'rpm6': parsed_data_arr[9],
+            'rpm7': parsed_data_arr[10],
+            'rpm8': parsed_data_arr[11],
+            'cur1': parsed_data_arr[12],
+            'cur2': parsed_data_arr[13],
+            'cur3': parsed_data_arr[14],
+            'cur4': parsed_data_arr[15],
+            'cur5': parsed_data_arr[16],
+            'cur6': parsed_data_arr[17],
+            'cur7': parsed_data_arr[18],
+            'cur8': parsed_data_arr[19],
         }
         num_rotors = 8
         for i in range(0, num_rotors):
@@ -104,7 +106,51 @@ class FireflyOptimizer:
             try:
                 # cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
                 cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
+
+                # Dec9 19:39
+
+                # pwm test -c 1 -p 1000
+                # angVel_11     OK
+                # current_11    channel is dead
+                # voltage_11    OK
+
+                # pwm test -c 2 -p 1000
+                # angVel_12     OK
+                # current_12    channel is dead
+                # voltage_12    OK
+
+                # pwm test -c 3 -p 1000
+                # angVel_13     OK
+                # current_13    channel is dead     corresponds to cur1
+                # voltage_13    OK
+
+                # pwm test -c 4 -p 1000
+                # angVel_14     OK
+                # current_14    channel is dead     corresponds to cur3
+                # voltage_14    OK
+
+                # pwm test -c 5 -p 1000
+                # angVel_15     OK
+                # current_15    channel is dead
+                # voltage_15    OK
+
+                # pwm test -c 6 -p 1000
+                # angVel_16     OK
+                # current_16    channel is dead
+                # voltage_16    OK
+
+                # pwm test -c 7 -p 1000
+                # angVel_17     OK
+                # current_17    channel is dead     corresponds to cur4
+                # voltage_17    OK
+
+                # pwm test -c 8 -p 1000
+                # angVel_18     OK
+                # current_18    channel is dead     corresponds to cur2
+                # voltage_18    OK
+
                 # cur1 corresponds to motor3
+                # cur2 corresponds to motor8
                 # cur3 corresponds to motor4
                 # cur4 corresponds to motor7
             except KeyError:

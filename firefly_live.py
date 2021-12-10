@@ -81,11 +81,13 @@ class SensorIfaceWrapper:
 
     @staticmethod
     def get_header():
-        fields = ["sps", "mills", "secs", "dtmills",
-                  "cur1", "cur2", "cur3", "cur4",
-                  "cur5", "cur6", "cur7", "cur8",
-                  "rpm1", "rpm2", "rpm3", "rpm4",
-                  "rpm5", "rpm6", "rpm7", "rpm8"]
+        fields = [
+            "sps", "mills", "secs", "dtmills",
+            "rpm1", "rpm2", "rpm3", "rpm4",
+            "rpm5", "rpm6", "rpm7", "rpm8",
+            "cur1", "cur2", "cur3", "cur4",
+            "cur5", "cur6", "cur7", "cur8"
+        ]
         ars_header = ", ".join(fields)
         esc_header = "time s, escid, " \
                      "voltage V, current A, angVel rpm, temp degC, warning, " \
