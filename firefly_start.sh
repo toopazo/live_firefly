@@ -40,4 +40,4 @@ echo "Starting live_firefly --------------------------"
 cd /home/pi/live_firefly
 source venv/bin/activate
 sleep 10
-python firefly_mavshell_static.py /dev/ttyACM1 --baud 57600
+python firefly_mavlink_static.py /dev/ttyACM1 --baud 57600

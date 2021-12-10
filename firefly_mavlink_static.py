@@ -110,30 +110,22 @@ class FireflyMavCmd:
         'firefly nsh_command +0.2 +0.2 1',
         'firefly nsh_command +0.3 +0.3 1',
         'firefly nsh_command +0.4 +0.4 1',
-        'firefly nsh_command +0.5 +0.5 1',
-        'firefly nsh_command +0.6 +0.6 1',
-        'firefly nsh_command +0.7 +0.7 1',
-        'firefly nsh_command +0.8 +0.8 1',
-        'firefly nsh_command +0.9 +0.9 1',
-        'firefly nsh_command +1.0 +1.0 1',  # highest +delta
-        'firefly nsh_command +0.8 +0.8 1',  # coming back to zero delta
-        'firefly nsh_command +0.6 +0.6 1',  # coming back to zero delta
-        'firefly nsh_command +0.4 +0.4 1',  # coming back to zero delta
-        'firefly nsh_command +0.2 +0.2 1',  # coming back to zero delta
-        # 'firefly nsh_command -0.1 -0.1 1',
-        # 'firefly nsh_command -0.2 -0.2 1',
-        # 'firefly nsh_command -0.3 -0.3 1',
-        # 'firefly nsh_command -0.4 -0.4 1',
-        # 'firefly nsh_command -0.5 -0.5 1',
-        # 'firefly nsh_command -0.6 -0.6 1',
-        # 'firefly nsh_command -0.7 -0.7 1',
-        # 'firefly nsh_command -0.8 -0.8 1',
-        # 'firefly nsh_command -0.9 -0.9 1',
-        # 'firefly nsh_command -1.0 -1.0 1',  # highest -delta
-        # 'firefly nsh_command -0.8 -0.8 1',  # coming back to zero delta
-        # 'firefly nsh_command -0.6 -0.6 1',  # coming back to zero delta
-        # 'firefly nsh_command -0.4 -0.4 1',  # coming back to zero delta
-        # 'firefly nsh_command -0.2 -0.2 1',  # coming back to zero delta
+        'firefly nsh_command +0.5 +0.5 1',  # highest +delta
+        'firefly nsh_command +0.4 +0.4 1',
+        'firefly nsh_command +0.3 +0.3 1',
+        'firefly nsh_command +0.2 +0.2 1',
+        'firefly nsh_command +0.1 +0.1 1',
+        'firefly nsh_command +0.0 +0.0 1',  # zero delta
+        'firefly nsh_command -0.1 -0.1 1',
+        'firefly nsh_command -0.2 -0.2 1',
+        'firefly nsh_command -0.3 -0.3 1',
+        'firefly nsh_command -0.4 -0.4 1',
+        'firefly nsh_command -0.5 -0.5 1',  # lowest +delta
+        'firefly nsh_command -0.4 -0.4 1',
+        'firefly nsh_command -0.3 -0.3 1',
+        'firefly nsh_command -0.2 -0.2 1',
+        'firefly nsh_command -0.1 -0.1 1',
+        'firefly nsh_command +0.0 +0.0 1',  # zero delta
     ]
     mavcmd_iterator = iter(mavcmd_array)
 
