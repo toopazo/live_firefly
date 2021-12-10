@@ -201,6 +201,7 @@ def test_optimizer():
                 nsh_delta_prev = nsh_delta
 
                 nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
+                print(nsh_cmd)
                 fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
 
                 cost_m38_arr = []
