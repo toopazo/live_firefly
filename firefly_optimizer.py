@@ -163,6 +163,6 @@ class FireflyOptimizer:
                 # cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
                 cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'cur_{escid}']
             except KeyError:
-                cost = None
+                cost = -1
             cost_arr.append(cost)
         return cost_arr

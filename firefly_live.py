@@ -6,6 +6,7 @@
 # import datetime
 import time
 import queue
+import numpy as np
 
 from toopazo_tools.file_folder import FileFolderTools as FFTools
 from toopazo_tools.telemetry import TelemetryLogger
@@ -114,12 +115,12 @@ def test_mavlink_shell():
     fm_queue = queue.Queue()
     fm_thread = fm.start(fm_queue)
 
-    cmd_rate = 3
+    cmd_period = 3
     for i in range(0, 3):
         # if FireflyMavlink.check_timeout(timeout=cmd_rate):
         nsh_cmd = f'firefly write_delta {i} {i} 1'
         fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
-        time.sleep(cmd_rate)
+        time.sleep(cmd_period)
     fm_queue.put(FireflyMavMsg(FireflyMavEnum.stop_running, True))
 
     print('Calling join ..')
@@ -146,5 +147,75 @@ def test_sensor_iface():
         telem_logger.save_data(log_data=f'{log_data}, {fcost}', log_header='')
 
 
+def test_optimizer():
+    sensor_iface = SensorIfaceWrapper(ars_port='/dev/ttyACM0')
+    # time0 = datetime.datetime.now()
+    time0 = time.time()
+
+    log_folder = parse_user_arg('/home/pi/live_firefly/logs')
+    log_ext = ".firefly"
+    telem_logger = TelemetryLogger(log_folder, sensor_iface, log_ext)
+
+    fm = FireflyMavlink(port='/dev/ttyACM1', baudrate=57600)
+    fm_queue = queue.Queue()
+    fm_thread = fm.start(fm_queue)
+
+    cmd_period = 3
+    sampling_period = 0.3
+    cost_m38_arr = []
+    cost_m47_arr = []
+    avg_cost_m38 = 0
+    avg_cost_m47 = 0
+    num_samples = np.ceil(cmd_period/sampling_period)
+    nsh_delta = 0
+    nsh_delta_prev = 0
+    cnt = 0
+    try:
+        while True:
+            cnt = cnt + 1
+
+            log_data = sensor_iface.get_data()
+            fcost = FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data=log_data)
+            print(f'fcost {[round(e, 4) for e in fcost]}')
+            TelemetryLogger.busy_waiting(time0, sampling_period, sampling_period / 8)
+
+            cost_m38 = fcost[3 - 1] + fcost[8 - 1]
+            cost_m47 = fcost[4 - 1] + fcost[7 - 1]
+            cost_m38_arr.append(cost_m38)
+            cost_m47_arr.append(cost_m47)
+
+            if cnt >= num_samples:
+                k = 0.1
+                avg_cost_m38 = np.average(cost_m38_arr)
+                avg_cost_m47 = np.average(cost_m47_arr)
+                nsh_delta = nsh_delta - k * (avg_cost_m38 + avg_cost_m47)
+                if nsh_delta >= +0.5:
+                    nsh_delta = +0.5
+                if nsh_delta <= -0.5:
+                    nsh_delta = -0.5
+                max_delta_change = 0.1
+                if (nsh_delta - nsh_delta_prev) >= +max_delta_change:
+                    nsh_delta = nsh_delta_prev + max_delta_change
+                if (nsh_delta - nsh_delta_prev) <= -max_delta_change:
+                    nsh_delta = nsh_delta_prev - max_delta_change
+                nsh_delta_prev = nsh_delta
+
+                nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
+                fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
+
+                cost_m38_arr = []
+                cost_m47_arr = []
+
+            optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}'
+            log_data = f'{log_data}, {fcost}, {optim_data}'
+            telem_logger.save_data(log_data=log_data, log_header='')
+
+    except KeyboardInterrupt:
+        fm_queue.put(FireflyMavMsg(FireflyMavEnum.stop_running, True))
+        fm_thread.join(timeout=60 * 1)
+
+
 if __name__ == '__main__':
-    test_sensor_iface()
+    # test_mavlink_shell()
+    # test_sensor_iface()
+    test_optimizer()
