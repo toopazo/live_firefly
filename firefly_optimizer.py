@@ -1,20 +1,7 @@
 import pprint
 
-class FireflyOptimizer:
-    @staticmethod
-    def print_sensor_data(sensor_data):
-        fields = ["sps", "mills", "secs", "dtmills",
-                  "cur1", "cur2", "cur3", "cur4",
-                  "cur5", "cur6", "cur7", "cur8",
-                  "rpm1", "rpm2", "rpm3", "rpm4",
-                  "rpm5", "rpm6", "rpm7", "rpm8"]
-        ars_header = ", ".join(fields)
-        esc_header = "time s, escid, " \
-                     "voltage V, current A, angVel rpm, temp degC, warning, " \
-                     "inthtl us, outthtl perc"
-        # sensor_header = f"{ars_header}, {esc_header}"
 
-        FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data)
+class FireflyOptimizer:
 
     @staticmethod
     def parse_sensor_data(sensor_data):
@@ -58,10 +45,11 @@ class FireflyOptimizer:
             'rpm7': parsed_data[18],
             'rpm8': parsed_data[19],
         }
-        for i in range(0, 8):
+        num_rotors = 8
+        for i in range(0, num_rotors):
             indx = 20 + 9*i
             escid = str(10+i+1)
-            print(f'indx {indx} escid {escid}')
+            # print(f'indx {indx} escid {escid}')
 
             try:
                 parsed_data2[f'time_{escid}'] = parsed_data[indx+0]   # 20 + 9*0 = 20, # 20 + 9*1 = 29
@@ -75,9 +63,6 @@ class FireflyOptimizer:
                 parsed_data2[f'outthtl_{escid}'] = parsed_data[indx+8]
             except IndexError:
                 pass
-
-        # sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
-        # print(f'parsed_data {parsed_data2}')
         return parsed_data2
 
     @staticmethod
@@ -86,5 +71,14 @@ class FireflyOptimizer:
         # sensor_data = [float(e.strip()) for e in sensor_data.split(',')]
         # print(f'parsed_data {parsed_data}')
         pprint.pprint(parsed_data)
-        cost = parsed_data['mills']
-        return cost
+
+        cost_arr = []
+        num_rotors = 8
+        for i in range(0, num_rotors):
+            escid = str(10 + i + 1)
+            try:
+                cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
+            except IndexError:
+                cost = None
+            cost_arr.append(cost)
+        return cost_arr
