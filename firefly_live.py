@@ -220,7 +220,7 @@ def test_optimizer():
                 cost_m47_arr = []
                 cnt_samples = 0
 
-            optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}, {avg_cost_tot_prev}'
+            optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}, {avg_cost_tot}, {avg_cost_tot_prev}'
             log_data = f'{log_data}, {fcost}, {optim_data}'
             telem_logger.save_data(log_data=log_data, log_header='')
 
