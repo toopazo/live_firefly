@@ -77,6 +77,7 @@ class FireflyOptimizer:
         for i in range(0, num_rotors):
             escid = str(10 + i + 1)
             try:
+                # cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
                 cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
             except KeyError:
                 cost = None

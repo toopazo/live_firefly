@@ -129,6 +129,10 @@ def test_sensor_iface():
     # time0 = datetime.datetime.now()
     time0 = time.time()
 
+    log_folder = parse_user_arg('/home/pi/live_firefly/logs')
+    log_ext = ".firefly"
+    telem_logger = TelemetryLogger(log_folder, sensor_iface, log_ext)
+
     sampling_period = 3
     while True:
         print(SensorIfaceWrapper.get_header())
@@ -137,6 +141,7 @@ def test_sensor_iface():
         fcost = FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data=log_data)
         print(f'fcost {fcost}')
         TelemetryLogger.busy_waiting(time0, sampling_period, sampling_period / 8)
+        telem_logger.save_data(log_data=f'{log_data}, {fcost}', log_header='')
 
 
 if __name__ == '__main__':
