@@ -167,6 +167,8 @@ def test_optimizer():
     cost_m47_arr = []
     avg_cost_m38 = 0
     avg_cost_m47 = 0
+    avg_cost_tot = 0
+    avg_cost_tot_prev = 0
     num_samples = np.ceil(cmd_period/sampling_period)
     cnt_samples = 0
     nsh_delta = 0
@@ -187,10 +189,13 @@ def test_optimizer():
             cost_m47_arr.append(cost_m47)
 
             if cnt_samples >= num_samples:
-                k = 1 * (1 / 10000)
+                k = 1 * (1 / 100000)
                 avg_cost_m38 = np.average(cost_m38_arr)
                 avg_cost_m47 = np.average(cost_m47_arr)
-                nsh_delta = nsh_delta - k * (avg_cost_m38 + avg_cost_m47)
+                avg_cost_tot = avg_cost_m38 + avg_cost_m47
+                nsh_delta = nsh_delta - k * (avg_cost_tot_prev - avg_cost_tot)
+
+                print(f'cnt_samples {cnt_samples}, avg_cost_tot {avg_cost_tot}, avg_cost_tot_prev {avg_cost_tot_prev}')
                 print(f'cnt_samples {cnt_samples}, initial nsh_delta {nsh_delta}')
 
                 # Max rate
@@ -204,16 +209,18 @@ def test_optimizer():
                     nsh_delta = +0.5
                 if nsh_delta <= -0.5:
                     nsh_delta = -0.5
-                nsh_delta_prev = nsh_delta
 
                 nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
                 fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
 
+                # Next iteration
+                nsh_delta_prev = nsh_delta
+                avg_cost_tot_prev = avg_cost_tot
                 cost_m38_arr = []
                 cost_m47_arr = []
                 cnt_samples = 0
 
-            optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}'
+            optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}, {avg_cost_tot_prev}'
             log_data = f'{log_data}, {fcost}, {optim_data}'
             telem_logger.save_data(log_data=log_data, log_header='')
 
