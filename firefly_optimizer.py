@@ -78,7 +78,7 @@ class FireflyOptimizer:
             escid = str(10 + i + 1)
             try:
                 cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
-            except IndexError:
+            except KeyError:
                 cost = None
             cost_arr.append(cost)
         return cost_arr
