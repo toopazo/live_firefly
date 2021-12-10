@@ -146,9 +146,8 @@ class FireflyMavlink:
                     # fm_msg = _queue.get(block=False)
                     fm_msg = _queue.get(block=True, timeout=0.1)
                     assert isinstance(fm_msg, FireflyMavMsg)
-                    print(f'A {FireflyMavMsg.__name__} was received')
+                    # print(f'A {FireflyMavMsg.__name__} was received')
                     if fm_msg.key == FireflyMavEnum.stop_running and fm_msg.val:
-                        time.sleep(self.cmd_rate)
                         mav_serial.close()
                         return
                     if fm_msg.key == FireflyMavEnum.nsh_command:

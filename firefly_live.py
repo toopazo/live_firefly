@@ -160,7 +160,7 @@ def test_optimizer():
     fm_queue = queue.Queue()
     fm_thread = fm.start(fm_queue)
 
-    cmd_period = 3
+    cmd_period = 5
     # sampling_period = 0.3
     sampling_period = 1
     cost_m38_arr = []
