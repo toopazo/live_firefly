@@ -151,7 +151,8 @@ class FireflyOptimizer:
         parsed_data = FireflyOptimizer.parse_sensor_data(sensor_data)
         # print(f'parsed_data {parsed_data}')
         try:
-            pprint.pprint(FireflyOptimizer.filter_parsed_data(parsed_data))
+            # pprint.pprint(FireflyOptimizer.filter_parsed_data(parsed_data))
+            pass
         except KeyError:
             print('[sensor_data_to_cost_fnct] error parsing data')
 
