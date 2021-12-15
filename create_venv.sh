@@ -19,9 +19,15 @@ python -m pip install -U pymavlink
 python -m pip install -U python-can
 python -m pip install -U net-tools
 python -m pip install -U pyqt5
+python -m pip install -U pandas
+python -m pip install -U matplotlib
 python -m pip install -U toopazo-tools
+python -m pip install -U toopazo-ulg
 
 # For some reason I need to run this twice
 python -m pip install -U pymavlink
+
+python -m pip install git+https://github.com/toopazo/live_esc.git
+python -m pip install git+https://github.com/toopazo/live_ars.git
 
 

@@ -156,9 +156,9 @@ def test_optimizer():
     log_ext = ".firefly"
     telem_logger = TelemetryLogger(log_folder, sensor_iface, log_ext)
 
-    fm = FireflyMavlink(port='/dev/ttyACM1', baudrate=57600)
-    fm_queue = queue.Queue()
-    fm_thread = fm.start(fm_queue)
+    fmavl = FireflyMavlink(port='/dev/ttyACM1', baudrate=57600)
+    fmavl_queue = queue.Queue()
+    fmavl_thread = fmavl.start(fmavl_queue)
 
     cmd_period = 10
     # sampling_period = 0.3
@@ -177,8 +177,8 @@ def test_optimizer():
         while True:
             cnt_samples = cnt_samples + 1
 
-            log_data = sensor_iface.get_data()
-            fcost = FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data=log_data)
+            sensor_data = sensor_iface.get_data()
+            fcost = FireflyOptimizer.sensor_data_to_cost_fnct(sensor_data=sensor_data)
             # print(f'fcost {[round(e, 4) for e in fcost]}')
             TelemetryLogger.busy_waiting(time0, sampling_period, sampling_period / 8)
 
@@ -214,7 +214,7 @@ def test_optimizer():
                 print(f'cnt_samples {cnt_samples}, nsh_delta {nsh_delta}, nsh_delta_prev {nsh_delta_prev}')
 
                 nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
-                fm_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
+                fmavl_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
 
                 # Next iteration
                 nsh_delta_prev = nsh_delta
@@ -224,12 +224,12 @@ def test_optimizer():
                 cnt_samples = 0
 
             optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}, {avg_cost_tot}, {avg_cost_tot_prev}'
-            log_data = f'{log_data}, {fcost}, {optim_data}'
-            telem_logger.save_data(log_data=log_data, log_header='')
+            sensor_data = f'{sensor_data}, {fcost}, {optim_data}'
+            telem_logger.save_data(log_data=sensor_data, log_header='')
 
     except KeyboardInterrupt:
-        fm_queue.put(FireflyMavMsg(FireflyMavEnum.stop_running, True))
-        fm_thread.join(timeout=60 * 1)
+        fmavl_queue.put(FireflyMavMsg(FireflyMavEnum.stop_running, True))
+        fmavl_thread.join(timeout=60 * 1)
 
 
 if __name__ == '__main__':
