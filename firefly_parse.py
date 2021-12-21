@@ -1,4 +1,5 @@
 import copy
+import datetime
 import sys
 
 import argparse
@@ -36,6 +37,8 @@ class FireflyParser:
             tmpdir = self.tmpdir
             self.ulg_file = ulg_file
 
+            UlgParser.check_ulog2csv(self.tmpdir, self.ulg_file)
+
             df_pv = UlgParser.get_pandas_dataframe_pos_vel(tmpdir, ulg_file, time_win=None)
             self.ulg_pv_df = df_pv
             [df_att, df_attsp] = UlgParser.get_pandas_dataframe_rpy_angles(tmpdir, ulg_file, time_win=None)
@@ -50,6 +53,18 @@ class FireflyParser:
             [df_in, df_out] = UlgParser.get_pandas_dataframe_ctrl_alloc(tmpdir, ulg_file, time_win=None)
             self.ulg_in_df = df_in
             self.ulg_out_df = df_out
+
+            self.ulg_dict = {
+                'ulg_pv_df': self.ulg_pv_df,
+                # 'ulg_att_df': self.ulg_att_df,
+                # 'ulg_attsp_df': self.ulg_attsp_df,
+                # 'ulg_angvel_df': self.ulg_angvel_df,
+                # 'ulg_angvelsp_df': self.ulg_angvelsp_df,
+                # 'ulg_sticks_df': self.ulg_sticks_df,
+                # 'ulg_switches_df': self.ulg_switches_df,
+                'ulg_in_df': self.ulg_in_df,
+                'ulg_out_df': self.ulg_out_df,
+            }
 
     @staticmethod
     def get_kdecan_arrays(kdecan_df, escid):
@@ -119,36 +134,47 @@ class FireflyParser:
         return arm_dict
 
     @staticmethod
-    def match_kdecan_and_ulg_dataframe(kdecan_df, ulg_out_df):
-        assert isinstance(kdecan_df, pandas.DataFrame)
-        assert isinstance(ulg_out_df, pandas.DataFrame)
-        kdecan_num_rows = kdecan_df.shape[0]
-        ulg_num_rows = ulg_out_df.shape[0]
-        if kdecan_num_rows < ulg_num_rows:
-            raise RuntimeError(f'kdecan_num_rows {kdecan_num_rows} < ulg_num_rows {ulg_num_rows}')
+    def filter_by_hover(escid_dict, ulg_dict):
+        max_vnorm = 0.3
 
-        # Reset times to start at zero second
-        [kdecan_df, ulg_out_df] = FireflyParser.reset_kdecan_ulg_dataframe(kdecan_df, ulg_out_df)
-        # Remove disarmed throttle
-        [kdecan_df, ulg_out_df] = FireflyParser.remove_min_throttle(
-            kdecan_df, ulg_out_df, min_throttle=950, reference_escid=11)
+        ref_df = ulg_dict['ulg_out_df']
+        ref_cond = ref_df[f'output[0]'] > 1200
+        ulg_dict = UlgParserTools.remove_by_condition(ulg_dict, ref_cond)
+        # Use same ref_cond for escid_dict
+        escid_dict = EscidParserTools.remove_by_condition(escid_dict, ref_cond)
 
+        ref_df = ulg_dict['ulg_pv_df']
+        ref_cond = ref_df['vnorm'] < max_vnorm
+        ulg_dict = UlgParserTools.remove_by_condition(ulg_dict, ref_cond)
+        # Use same ref_cond for escid_dict
+        escid_dict = EscidParserTools.remove_by_condition(escid_dict, ref_cond)
+
+        ref_df = ulg_dict['ulg_in_df']
+        ref_cond = ref_df['az cmd'] > 0.4
+        ulg_dict = UlgParserTools.remove_by_condition(ulg_dict, ref_cond)
+        # Use same ref_cond for escid_dict
+        escid_dict = EscidParserTools.remove_by_condition(escid_dict, ref_cond)
+
+        return copy.deepcopy([escid_dict, ulg_dict])
+
+    @staticmethod
+    def kdecan_to_escid_dict(kdecan_df):
         # Create new dataframes for each escid
-        esc11_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=11, reset_time=True)
-        esc12_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=12, reset_time=True)
-        esc13_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=13, reset_time=True)
-        esc14_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=14, reset_time=True)
-        esc15_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=15, reset_time=True)
-        esc16_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=16, reset_time=True)
-        esc17_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=17, reset_time=True)
-        esc18_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=18, reset_time=True)
+        esc11_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=11)
+        esc12_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=12)
+        esc13_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=13)
+        esc14_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=14)
+        esc15_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=15)
+        esc16_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=16)
+        esc17_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=17)
+        esc18_df = FireflyParser.kdecan_to_escid_dataframe(kdecan_df, escid=18)
         min_num_samples = min(
-            esc11_df.shape[0], esc12_df.shape[0], esc13_df.shape[0], esc14_df.shape[0],
-            esc15_df.shape[0], esc16_df.shape[0], esc17_df.shape[0], esc18_df.shape[0]
+            esc11_df.shape[0], esc12_df.shape[0],
+            esc13_df.shape[0], esc14_df.shape[0],
+            esc15_df.shape[0], esc16_df.shape[0],
+            esc17_df.shape[0], esc18_df.shape[0]
         )
         escid_dict = {
-            # 'ulg_out_df': ulg_out_df,
-            # 'kdecan_df': kdecan_df,
             'esc11_df': esc11_df.iloc[:min_num_samples],
             'esc12_df': esc12_df.iloc[:min_num_samples],
             'esc13_df': esc13_df.iloc[:min_num_samples],
@@ -158,12 +184,67 @@ class FireflyParser:
             'esc17_df': esc17_df.iloc[:min_num_samples],
             'esc18_df': esc18_df.iloc[:min_num_samples],
         }
+        return copy.deepcopy(escid_dict)
 
-        [kdecan_df, ulg_out_df, escid_dict] = FireflyParser.remove_min_throttle_v2(
-            kdecan_df, ulg_out_df, escid_dict, min_throttle=950, reference_escid=11)
-        # FireflyParser.calculate_lag_cost(esc11_df, ulg_out_df, delta=1, reference_escid=11)
+    @staticmethod
+    def synchronize(escid_dict, ulg_dict):
 
-        return copy.deepcopy([kdecan_df, ulg_out_df, escid_dict])
+        esc11_num_samples = escid_dict['esc11_df'].shape[0]
+        ulg_num_samples = ulg_dict['ulg_out_df'].shape[0]
+        if esc11_num_samples != ulg_num_samples:
+            raise RuntimeError('esc11_num_samples != ulg_num_samples')
+
+        ref_escid = 11
+        min_throttle = 950
+
+        ref_df = escid_dict[f'esc{ref_escid}_df']
+        ref_cond = ref_df['inthtl us'] > min_throttle
+        escid_dict = EscidParserTools.remove_by_condition(escid_dict, ref_cond)
+
+        ref_df = ulg_dict['ulg_out_df']
+        ref_cond = ref_df[f'output[{int(ref_escid - 11)}]'] > min_throttle
+        ulg_dict = UlgParserTools.remove_by_condition(ulg_dict, ref_cond)
+
+        escid_dict = DataframeTools.reset_index(escid_dict)
+        ulg_dict = DataframeTools.reset_index(ulg_dict)
+
+        # esc11_index = escid_dict['esc11_df'].index
+        # ulg_index = ulg_dict['ulg_out_df'].index
+        # for i in range(0, max(len(esc11_index), len(ulg_index))):
+        #     if abs(esc11_index[i] - ulg_index[i]) > 10**-4:
+        #         print(f'esc11_index[{i}] {esc11_index[i]}')
+        #         print(f'ulg_index[{i}] {ulg_index[i]}')
+        #         raise RuntimeError(
+        #             'abs(esc11_index[i] - ulg_index[i]) > 10**-4')
+
+        # print(f'esc11_index {esc11_index}')
+        # print(f'ulg_index {ulg_index}')
+        # print(f'index_diff {ulg_index-esc11_index}')
+
+        # FireflyParser.calculate_lag_cost(
+        #     esc11_df, ulg_out_df, delta=1, reference_escid=11)
+
+        esc11_num_samples = escid_dict['esc11_df'].shape[0]
+        ulg_num_samples = ulg_dict['ulg_out_df'].shape[0]
+
+        if esc11_num_samples > ulg_num_samples:
+            ref_df = escid_dict['esc11_df']
+            escid_dict = DataframeTools.remove_by_index(
+                escid_dict, ref_df.index[-1])
+
+        if ulg_num_samples > esc11_num_samples:
+            ref_df = ulg_dict['ulg_out_df']
+            ulg_dict = DataframeTools.remove_by_index(
+                ulg_dict, ref_df.index[-1])
+
+        esc11_num_samples = escid_dict['esc11_df'].shape[0]
+        ulg_num_samples = ulg_dict['ulg_out_df'].shape[0]
+        if esc11_num_samples != ulg_num_samples:
+            print(f'esc11_num_samples {esc11_num_samples}')
+            print(f'ulg_num_samples {ulg_num_samples}')
+            raise RuntimeError('esc11_num_samples != ulg_num_samples')
+
+        return copy.deepcopy([escid_dict, ulg_dict])
 
     @staticmethod
     def calculate_lag_cost(escid_df, ulg_out_df, delta, reference_escid):
@@ -191,6 +272,7 @@ class FireflyParser:
             err = np.abs(err)
             # err1 = err[:int(smalles_indx * 0.1)]
             # err2 = err[int(smalles_indx * 0.9):]
+            smallest_indx = -1
             err1 = err[:int(smallest_indx * 0.1)]
             err2 = err[:-int(smallest_indx * 0.1)]
             cost = np.sum(list(err1)+list(err2))
@@ -202,114 +284,7 @@ class FireflyParser:
         return [delta_arr, cost_arr]
 
     @staticmethod
-    def remove_min_throttle_v2(kdecan_df, ulg_out_df, escid_dict, min_throttle, reference_escid):
-        assert isinstance(kdecan_df, pandas.DataFrame)
-        assert isinstance(ulg_out_df, pandas.DataFrame)
-
-        esc11_df = escid_dict['esc11_df']
-        esc12_df = escid_dict['esc12_df']
-        esc13_df = escid_dict['esc13_df']
-        esc14_df = escid_dict['esc14_df']
-        esc15_df = escid_dict['esc15_df']
-        esc16_df = escid_dict['esc16_df']
-        esc17_df = escid_dict['esc17_df']
-        esc18_df = escid_dict['esc18_df']
-
-        # print(esc11_df.shape)
-        # print(esc12_df.shape)
-        # print(esc13_df.shape)
-        # print(esc14_df.shape)
-        # print(esc15_df.shape)
-        # print(esc16_df.shape)
-        # print(esc17_df.shape)
-        # print(esc18_df.shape)
-        # print(esc17_df)
-        # print(esc18_df)
-
-        escid_df = escid_dict[f'esc{reference_escid}_df']
-        reference_cond = escid_df['inthtl us'] > min_throttle
-
-        reference_cond.index = esc11_df.index
-        esc11_df = esc11_df[reference_cond]
-        reference_cond.index = esc12_df.index
-        esc12_df = esc12_df[reference_cond]
-        reference_cond.index = esc13_df.index
-        esc13_df = esc13_df[reference_cond]
-        reference_cond.index = esc14_df.index
-        esc14_df = esc14_df[reference_cond]
-        reference_cond.index = esc15_df.index
-        esc15_df = esc15_df[reference_cond]
-        reference_cond.index = esc16_df.index
-        esc16_df = esc16_df[reference_cond]
-        reference_cond.index = esc17_df.index
-        esc17_df = esc17_df[reference_cond]
-        reference_cond.index = esc18_df.index
-        esc18_df = esc18_df[reference_cond]
-
-        kdecan_df = kdecan_df[kdecan_df['escid'] == reference_escid]
-        ulg_out_df = ulg_out_df[ulg_out_df[f'output[{int(reference_escid - 11)}]'] > min_throttle]
-
-        escid_dict = {
-            'esc11_df': esc11_df,
-            'esc12_df': esc12_df,
-            'esc13_df': esc13_df,
-            'esc14_df': esc14_df,
-            'esc15_df': esc15_df,
-            'esc16_df': esc16_df,
-            'esc17_df': esc17_df,
-            'esc18_df': esc18_df,
-        }
-        return copy.deepcopy([kdecan_df, ulg_out_df, escid_dict])
-
-    @staticmethod
-    def remove_min_throttle(kdecan_df, ulg_out_df, min_throttle, reference_escid):
-        assert isinstance(kdecan_df, pandas.DataFrame)
-        assert isinstance(ulg_out_df, pandas.DataFrame)
-
-        kdecan_df = kdecan_df[kdecan_df['inthtl us'] > min_throttle]
-        ulg_out_df = ulg_out_df[ulg_out_df[f'output[{int(reference_escid-11)}]'] > min_throttle]
-        # indx_after_ulg_tf = np.argwhere(kdecan_time_reset > ulg_tf)
-        # print(f'indx_after_ulg_tf {indx_after_ulg_tf}')
-        # print(f'kdecan_time_reset[indx_after_ulg_tf] {kdecan_time_reset[indx_after_ulg_tf]}')
-
-        return [copy.deepcopy(kdecan_df), copy.deepcopy(ulg_out_df)]
-
-    @staticmethod
-    def reset_kdecan_ulg_dataframe(kdecan_df, ulg_out_df):
-        assert isinstance(kdecan_df, pandas.DataFrame)
-        assert isinstance(ulg_out_df, pandas.DataFrame)
-        # Reset times to start at zero second
-        ulg_time_reset = ulg_out_df.index - ulg_out_df.index[0]
-        ulg_t0 = ulg_time_reset[0]
-        ulg_tf = ulg_time_reset[-1]
-        ulg_num_samples = len(ulg_time_reset)
-        ulg_sample_period = ulg_tf / ulg_num_samples
-        ulg_out_df.index = ulg_time_reset
-        # print(f'ulg_time_reset {ulg_time_reset}')
-        # print(ulg_out_df)
-        print(f'ulg_t0 {ulg_t0}')
-        print(f'ulg_tf {ulg_tf}')
-        print(f'ulg_num_samples {ulg_num_samples}')
-        print(f'ulg_sample_period {ulg_sample_period}')
-
-        kdecan_time_reset = kdecan_df.index - kdecan_df.index[0]
-        kdecan_time_reset = np.array(kdecan_time_reset.total_seconds())
-        kdecan_t0 = kdecan_time_reset[0]
-        kdecan_tf = kdecan_time_reset[-1]
-        kdecan_num_samples = len(kdecan_time_reset)
-        kdecan_sample_period = kdecan_tf / kdecan_num_samples
-        kdecan_df.index = kdecan_time_reset
-        # print(f'kdecan_time_reset {kdecan_time_reset}')
-        # print(kdecan_df)
-        print(f'kdecan_t0 {kdecan_t0}')
-        print(f'kdecan_tf {kdecan_tf}')
-        print(f'kdecan_num_samples {kdecan_num_samples}')
-        print(f'kdecan_sample_period {kdecan_sample_period}')
-
-        return [copy.deepcopy(kdecan_df), copy.deepcopy(ulg_out_df)]
-
-    @staticmethod
-    def kdecan_to_escid_dataframe(kdecan_df, escid, reset_time):
+    def kdecan_to_escid_dataframe(kdecan_df, escid):
         assert isinstance(kdecan_df, pandas.DataFrame)
         escid_cond = kdecan_df['escid'] == escid
         escid_df = kdecan_df[escid_cond]
@@ -333,11 +308,8 @@ class FireflyParser:
             'inthtl us': escid_df['inthtl us'].values,
             'outthtl perc': escid_df['outthtl perc'].values,
         }
-        if reset_time:
-            index_arr = escid_df.index - escid_df.index[0]
-        else:
-            index_arr = escid_df.index
-        new_escid_df = pandas.DataFrame(data, index=index_arr)
+        index = escid_df.index
+        new_escid_df = pandas.DataFrame(data=data, index=index)
 
         # new_escid_t0 = new_escid_df.index[0]
         # new_escid_tf = new_escid_df.index[-1]
@@ -367,152 +339,282 @@ class FireflyParser:
             raise RuntimeError(f'num_rows_after {num_rows_after} == num_rows {num_rows}')
         return kdecan_df
 
-    # def get_all_pandas_dataframe(self):
-    #     dataframe_dict = {
-    #         'kdecan_df': self.kdecan_df,
-    #         'ulg_pv_df': self.ulg_pv_df,
-    #         'ulg_att_df': self.ulg_att_df,
-    #         'ulg_attsp_df': self.ulg_attsp_df,
-    #         'ulg_angvel_df': self.ulg_angvel_df,
-    #         'ulg_angvelsp_df': self.ulg_angvelsp_df,
-    #         'ulg_sticks_df': self.ulg_sticks_df,
-    #         'ulg_switches_df': self.ulg_switches_df,
-    #         'ulg_in_df': self.ulg_in_df,
-    #         'ulg_out_df': self.ulg_out_df,
-    #     }
-    #     return dataframe_dict
 
-    # def calculate_kdecan_shift(self, selected_escid, save_plot):
-    #     [num_esc, kdecan_dict, ulg_dict] = self.get_time_and_throttle()
-    #
-    #     ax1 = None
-    #     ax2 = None
-    #     ax3 = None
-    #     if save_plot:
-    #         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=self.figsize)
-    #         ax1.grid(True)
-    #         ax1.set_ylabel("correlation")
-    #         ax1.set_xlabel("lags")
-    #         ax2.grid(True)
-    #         ax2.set_ylabel("throttle us")
-    #         ax2.set_xlabel("time s")
-    #         ax3.grid(True)
-    #         ax3.set_ylabel("throttle us")
-    #         ax3.set_xlabel("time s")
-    #
-    #     argmax_corr_arr = []
-    #     lags = []
-    #     for i in range(0, num_esc):
-    #         escid = 10 + i + 1
-    #         escid_key = f'escid_{escid}'
-    #
-    #         kdecan_time = kdecan_dict[escid_key][0]
-    #         kdecan_throttle = kdecan_dict[escid_key][1]
-    #         ulg_time = ulg_dict[escid_key][0]
-    #         ulg_throttle = ulg_dict[escid_key][1]
-    #
-    #         # plt.plot(kdecan_time, kdecan_throttle)
-    #         # plt.plot(ulg_time, ulg_throttle)
-    #
-    #         corr = signal.correlate(in1=ulg_throttle, in2=kdecan_throttle, mode='full', method='auto')
-    #         lags = signal.correlation_lags(len(ulg_throttle), len(kdecan_throttle))
-    #         corr = corr / np.max(corr)
-    #         argmax_corr = np.argmax(corr)
-    #         argmax_corr_arr.append(argmax_corr)
-    #         lag_argmax_corr = lags[argmax_corr]
-    #         # print(f'argmax_corr {argmax_corr}')
-    #         # print(f'lag_argmax_corr {lag_argmax_corr}')
-    #
-    #         if save_plot:
-    #             ax1.plot(lags, corr)
-    #             ax2.plot(kdecan_time, kdecan_throttle)
-    #             ax2.plot(ulg_time, ulg_throttle)
-    #
-    #     # argmax_corr = int(round(argmax_corr / num_esc, 0))
-    #     argmax_corr = int(np.median(np.array(argmax_corr_arr)))
-    #     lag_argmax_corr = lags[argmax_corr]
-    #     # print(f'argmax_corr {argmax_corr}')
-    #     # print(f'lag_argmax_corr {lag_argmax_corr}')
-    #
-    #     kdecan_shift = 0
-    #     for i in range(0, num_esc):
-    #         escid = 10 + i + 1
-    #         escid_key = f'escid_{escid}'
-    #
-    #         kdecan_time = kdecan_dict[escid_key][0]
-    #         kdecan_throttle = kdecan_dict[escid_key][1]
-    #         ulg_time = ulg_dict[escid_key][0]
-    #         ulg_throttle = ulg_dict[escid_key][1]
-    #
-    #         [delta_arr, cost_arr] = self.calculate_lag_cost(escid=selected_escid, lag=lag_argmax_corr, delta=10)
-    #         argmin_cost = np.argmin(cost_arr)
-    #         delta_argmin = delta_arr[argmin_cost]
-    #         # print(f'delta_arr {delta_arr}')
-    #         # print(f'cost_arr {cost_arr}')
-    #         # print(f'delta_argmin {delta_argmin}')
-    #
-    #         kdecan_shift = -lag_argmax_corr + delta_argmin + 4
-    #         if save_plot:
-    #             ax3.plot(kdecan_time[kdecan_shift:]-kdecan_time[kdecan_shift], kdecan_throttle[kdecan_shift:])
-    #             ax3.plot(ulg_time, ulg_throttle)
-    #
-    #     if save_plot:
-    #         ax1.set_title(f'ulg to kdecan cross-correlation: lag_macorr {lag_argmax_corr}', fontsize=16)
-    #
-    #         pltname = f'firefly_kdecan_ulg.png'
-    #         jpgfilename = os.path.abspath(f'{self.plotdir}/{pltname}')
-    #         plt.savefig(jpgfilename)
-    #
-    #     return kdecan_shift
+class EscidParserTools:
+    @staticmethod
+    def resample(escid_dict, time_secs, max_delta):
+        if DataframeTools.check_time_difference(escid_dict, max_delta):
+            # time_secs = DataframeTools.shortest_time_secs(escid_dict)
+            pass
+        else:
+            raise RuntimeError('EscidParserTools.check_time_difference failed')
 
-    # def get_time_and_throttle(self):
-    #     kdecan_df = self.firefly_parser.kdecan_df
-    #     assert isinstance(kdecan_df, pandas.DataFrame)
-    #     # print(kdecan_df)
-    #     kdecan_thtl_dict = {}
-    #     for i in range(0, 8):
-    #         escid = 10 + i + 1
-    #         df_i = kdecan_df[kdecan_df['escid'] == escid]
-    #         kdecan_thtl_dict[f'escid_{escid}'] = copy.deepcopy(df_i['inthtl us'])
-    #         # print(kdecan_thtl_dict[f'escid_{escid}'])
-    #
-    #     ulg_out_df = self.firefly_parser.ulg_out_df
-    #     assert isinstance(ulg_out_df, pandas.DataFrame)
-    #     # print(ulg_out_df)
-    #     ulg_thtl_dict = {}
-    #     for i in range(0, 8):
-    #         escid = 10 + i + 1
-    #         df_i = ulg_out_df[f'output[{i}]']
-    #         ulg_thtl_dict[f'escid_{escid}'] = copy.deepcopy(df_i)
-    #         # print(ulg_thtl_dict[f'escid_{escid}'])
-    #
-    #     kdecan_dict = {}
-    #     ulg_dict = {}
-    #
-    #     num_esc = 8
-    #     for i in range(0, num_esc):
-    #         escid = 10 + i + 1
-    #         escid_key = f'escid_{escid}'
-    #
-    #         kdecan_thtl = kdecan_thtl_dict[escid_key]
-    #         kdecan_time = kdecan_thtl.index - kdecan_thtl.index[0]
-    #         kdecan_time = np.array(kdecan_time.total_seconds())
-    #         kdecan_throttle = np.array(kdecan_thtl.values)
-    #         kdecan_dict[escid_key] = copy.deepcopy([kdecan_time, kdecan_throttle])
-    #         # print(type(kdecan_time))
-    #         # print(kdecan_time)
-    #         # print(kdecan_throttle)
-    #
-    #         ulg_thtl = ulg_thtl_dict[escid_key]
-    #         ulg_time = ulg_thtl.index - ulg_thtl.index[0]
-    #         ulg_time = np.array(ulg_time)
-    #         ulg_throttle = np.array(ulg_thtl.values)
-    #         ulg_dict[escid_key] = copy.deepcopy([ulg_time, ulg_throttle])
-    #         # print(type(ulg_time))
-    #         # print(ulg_time)
-    #         # print(ulg_throttle)
-    #
-    #     return [num_esc, kdecan_dict, ulg_dict]
+        new_escid_dict = {}
+        x = time_secs
+        for key, escid_df in escid_dict.items():
+            # xp = escid_df.index
+            xp = DataframeTools.index_to_elapsed_time(escid_df)
+            data = {
+                'voltage V':  np.interp(x, xp, fp=escid_df['voltage V']),
+                'current A':  np.interp(x, xp, fp=escid_df['current A']),
+                'angVel rpm': np.interp(x, xp, fp=escid_df['angVel rpm']),
+                'temp degC': np.interp(x, xp, fp=escid_df['temp degC']),
+                'inthtl us': np.interp(x, xp, fp=escid_df['inthtl us']),
+                'outthtl perc': np.interp(x, xp, fp=escid_df['outthtl perc']),
+            }
+            index = x
+            new_escid_df = pandas.DataFrame(data=data, index=index)
+            new_escid_dict[key] = new_escid_df
+            # print(f"key {key} ------------------------")
+            # print(f"{escid_df}")
+            # print(f"{new_escid_df}")
+        return copy.deepcopy(new_escid_dict)
+
+    @staticmethod
+    def synchronize(escid_dict, time_secs):
+        max_delta = 0.01
+        if DataframeTools.check_time_difference(escid_dict, max_delta):
+            # time_secs = DataframeTools.shortest_time_secs(escid_dict)
+            new_escid_dict = EscidParserTools.resample(
+                escid_dict, time_secs, max_delta)
+            return copy.deepcopy(new_escid_dict)
+        else:
+            raise RuntimeError('EscidParserTools.check_time_difference failed')
+
+    @staticmethod
+    def remove_by_condition(escid_dict, escid_ref_cond):
+        # assert isinstance(kdecan_df, pandas.DataFrame)
+        # assert isinstance(ulg_out_df, pandas.DataFrame)
+
+        esc11_df = escid_dict['esc11_df']
+        esc12_df = escid_dict['esc12_df']
+        esc13_df = escid_dict['esc13_df']
+        esc14_df = escid_dict['esc14_df']
+        esc15_df = escid_dict['esc15_df']
+        esc16_df = escid_dict['esc16_df']
+        esc17_df = escid_dict['esc17_df']
+        esc18_df = escid_dict['esc18_df']
+
+        # escid_df = escid_dict[f'esc{reference_escid}_df']
+        # escid_ref_cond = escid_df['inthtl us'] > min_throttle
+
+        escid_ref_cond.index = esc11_df.index
+        esc11_df = esc11_df[escid_ref_cond]
+        escid_ref_cond.index = esc12_df.index
+        esc12_df = esc12_df[escid_ref_cond]
+        escid_ref_cond.index = esc13_df.index
+        esc13_df = esc13_df[escid_ref_cond]
+        escid_ref_cond.index = esc14_df.index
+        esc14_df = esc14_df[escid_ref_cond]
+        escid_ref_cond.index = esc15_df.index
+        esc15_df = esc15_df[escid_ref_cond]
+        escid_ref_cond.index = esc16_df.index
+        esc16_df = esc16_df[escid_ref_cond]
+        escid_ref_cond.index = esc17_df.index
+        esc17_df = esc17_df[escid_ref_cond]
+        escid_ref_cond.index = esc18_df.index
+        esc18_df = esc18_df[escid_ref_cond]
+
+        escid_dict = {
+            'esc11_df': esc11_df,
+            'esc12_df': esc12_df,
+            'esc13_df': esc13_df,
+            'esc14_df': esc14_df,
+            'esc15_df': esc15_df,
+            'esc16_df': esc16_df,
+            'esc17_df': esc17_df,
+            'esc18_df': esc18_df,
+        }
+
+        return copy.deepcopy(escid_dict)
+
+
+class UlgParserTools:
+    @staticmethod
+    def synchronize(ulg_dict, time_secs):
+        max_delta = 0.01
+        if DataframeTools.check_time_difference(ulg_dict, max_delta):
+            # time_secs = DataframeTools.shortest_time_secs(ulg_dict)
+            new_df_arr = UlgParserTools.resample(
+                ulg_dict, time_secs, max_delta)
+            return copy.deepcopy(new_df_arr)
+        else:
+            raise RuntimeError('UlgParserTools.check_time_difference failed')
+
+    @staticmethod
+    def resample(escid_dict, time_secs, max_delta):
+        if DataframeTools.check_time_difference(escid_dict, max_delta):
+            # time_secs = DataframeTools.shortest_time_secs(escid_dict)
+            pass
+        else:
+            raise RuntimeError('EscidParserTools.check_time_difference failed')
+
+        new_escid_dict = {}
+        x = time_secs
+        for key, ulg_df in escid_dict.items():
+            # xp = ulg_df.index
+            xp = DataframeTools.index_to_elapsed_time(ulg_df)
+            data = UlgParserTools.get_data_by_type(x, xp, ulg_df, key)
+            index = x
+            new_escid_df = pandas.DataFrame(data=data, index=index)
+            new_escid_dict[key] = new_escid_df
+            # print(f"key {key} ------------------------")
+            # print(f"{ulg_df}")
+            # print(f"{new_escid_df}")
+        return copy.deepcopy(new_escid_dict)
+
+    @staticmethod
+    def get_data_by_type(x, xp, ulg_df, ulg_type):
+        if ulg_type == 'ulg_pv_df':
+            data = {
+                'x': np.interp(x, xp, fp=ulg_df['x']),
+                'y': np.interp(x, xp, fp=ulg_df['y']),
+                'z': np.interp(x, xp, fp=ulg_df['z']),
+                'vx': np.interp(x, xp, fp=ulg_df['vx']),
+                'vy': np.interp(x, xp, fp=ulg_df['vy']),
+                'vz': np.interp(x, xp, fp=ulg_df['vz']),
+                'vnorm': np.interp(x, xp, fp=ulg_df['vnorm']),
+                'pnorm': np.interp(x, xp, fp=ulg_df['pnorm']),
+            }
+            return data
+        if ulg_type == 'ulg_att_df':
+            data = {
+                'roll': np.interp(x, xp, fp=ulg_df['roll']),
+                'pitch': np.interp(x, xp, fp=ulg_df['pitch']),
+                'yaw': np.interp(x, xp, fp=ulg_df['yaw']),
+            }
+            return data
+        if ulg_type == 'ulg_in_df':
+            data = {
+                'roll rate cmd': np.interp(x, xp, fp=ulg_df['roll rate cmd']),
+                'pitch rate cmd': np.interp(x, xp, fp=ulg_df['pitch rate cmd']),
+                'yaw rate cmd': np.interp(x, xp, fp=ulg_df['yaw rate cmd']),
+                'az cmd': np.interp(x, xp, fp=ulg_df['az cmd']),
+            }
+            return data
+        if ulg_type == 'ulg_out_df':
+            data = {
+                'output[0]': np.interp(x, xp, fp=ulg_df['output[0]']),
+                'output[1]': np.interp(x, xp, fp=ulg_df['output[1]']),
+                'output[2]': np.interp(x, xp, fp=ulg_df['output[2]']),
+                'output[3]': np.interp(x, xp, fp=ulg_df['output[3]']),
+                'output[4]': np.interp(x, xp, fp=ulg_df['output[4]']),
+                'output[5]': np.interp(x, xp, fp=ulg_df['output[5]']),
+                'output[6]': np.interp(x, xp, fp=ulg_df['output[6]']),
+                'output[7]': np.interp(x, xp, fp=ulg_df['output[7]']),
+            }
+            return data
+
+    @staticmethod
+    def remove_by_condition(ulg_dict, ulg_ref_cond):
+        ulg_pv_df = ulg_dict['ulg_pv_df']
+        ulg_in_df = ulg_dict['ulg_in_df']
+        ulg_out_df = ulg_dict['ulg_out_df']
+
+        # ulg_key = f'output[{int(reference_escid - 11)}]'
+        # ulg_ref_cond = ulg_out_df[ulg_key] > min_throttle
+
+        ulg_ref_cond.index = ulg_pv_df.index
+        ulg_pv_df = ulg_pv_df[ulg_ref_cond]
+        ulg_ref_cond.index = ulg_in_df.index
+        ulg_in_df = ulg_in_df[ulg_ref_cond]
+        ulg_ref_cond.index = ulg_out_df.index
+        ulg_out_df = ulg_out_df[ulg_ref_cond]
+
+        ulg_dict = {
+            'ulg_pv_df': ulg_pv_df,
+            # 'ulg_att_df': ulg_att_df,
+            # 'ulg_attsp_df': ulg_attsp_df,
+            # 'ulg_angvel_df': ulg_angvel_df,
+            # 'ulg_angvelsp_df': ulg_angvelsp_df,
+            # 'ulg_sticks_df': ulg_sticks_df,
+            # 'ulg_switches_df': ulg_switches_df,
+            'ulg_in_df': ulg_in_df,
+            'ulg_out_df': ulg_out_df,
+        }
+        return copy.deepcopy(ulg_dict)
+
+
+class DataframeTools:
+    @staticmethod
+    def reset_index(df_dict):
+        assert isinstance(df_dict, dict)
+        for key, val in df_dict.items():
+            time_secs = DataframeTools.index_to_elapsed_time(val)
+            df_dict[key].index = time_secs
+        return copy.deepcopy(df_dict)
+
+    @staticmethod
+    def timedelta_to_float(time_arr):
+        # Just in case, convert to secs
+        time_arr = np.array(
+            time_arr).astype("timedelta64[ms]").astype(int) / 1000
+        return time_arr
+
+    @staticmethod
+    def index_to_elapsed_time(dataframe):
+        if isinstance(dataframe.index, pandas.DatetimeIndex):
+            time_delta = dataframe.index - dataframe.index[0]
+            time_secs = DataframeTools.timedelta_to_float(time_delta)
+        else:
+            time_secs = dataframe.index - dataframe.index[0]
+        return time_secs
+
+    @staticmethod
+    def check_time_difference(df_coll, max_delta):
+        df_arr = []
+        if isinstance(df_coll, dict):
+            for key, val in df_coll.items():
+                df_arr.append(val)
+        if isinstance(df_coll, list):
+            df_arr = df_coll
+
+        time_0_arr = []
+        time_1_arr = []
+        for df in df_arr:
+            time_0_arr.append(df.index[0])
+            time_1_arr.append(df.index[1])
+        time_0_diff = np.diff(time_0_arr)
+        time_1_diff = np.diff(time_1_arr)
+        # Just in case, convert to secs
+        time_0_diff = DataframeTools.timedelta_to_float(time_0_diff)
+        time_1_diff = DataframeTools.timedelta_to_float(time_1_diff)
+        # Convert to abs values
+        time_0_diff = np.abs(time_0_diff)
+        time_1_diff = np.abs(time_1_diff)
+        if max(time_0_diff) > max_delta:
+            return False
+        if max(time_1_diff) > max_delta:
+            return False
+        return True
+
+    @staticmethod
+    def shortest_time_secs(df_coll):
+        df_arr = []
+        if isinstance(df_coll, dict):
+            for key, val in df_coll.items():
+                df_arr.append(val)
+        if isinstance(df_coll, list):
+            df_arr = df_coll
+
+        time_1_arr = []
+        time_secs_arr = []
+        for df in df_arr:
+            time_secs = DataframeTools.index_to_elapsed_time(df)
+            time_1_arr.append(time_secs[-1])
+            time_secs_arr.append(time_secs)
+        # time_secs of the escid that has the samllest time_1
+        i_smallest_time_1 = np.argmin(time_1_arr)
+        i_time_secs = time_secs_arr[i_smallest_time_1]
+        return i_time_secs
+
+    @staticmethod
+    def remove_by_index(df_dict, rm_index):
+        for key, df in df_dict.items():
+            assert isinstance(df, pandas.DataFrame)
+            df_dict[key] = df.drop(rm_index)
+        return copy.deepcopy(df_dict)
+
 
 def find_file_in_folder(fpath, extension, log_num):
     selected_file = ''

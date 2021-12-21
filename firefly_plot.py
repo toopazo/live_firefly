@@ -12,6 +12,9 @@ from live_esc.kde_uas85uvc.kdecan_parse import KdecanParser
 from toopazo_ulg.parse_file import UlgParser
 from toopazo_tools.file_folder import FileFolderTools as FFTools
 from firefly_parse import FireflyParser
+from firefly_parse import EscidParserTools as EscidPT
+from firefly_parse import UlgParserTools as UlgPT
+from firefly_parse import DataframeTools
 
 
 class FireflyPlot:
@@ -49,19 +52,49 @@ class FireflyPlot:
     def process_file(self, kdecan_file, ulg_file, firefly_tag):
         self.firefly_parser = FireflyParser(self.bdir, kdecan_file, ulg_file)
         kdecan_df = self.firefly_parser.kdecan_df
-        ulg_out_df = self.firefly_parser.ulg_out_df
+        escid_dict = FireflyParser.kdecan_to_escid_dict(kdecan_df)
+        ulg_dict = self.firefly_parser.ulg_dict
 
-        [kdecan_df, ulg_out_df, escid_dict] = FireflyParser.match_kdecan_and_ulg_dataframe(kdecan_df, ulg_out_df)
-        self.plot_match_throttle(kdecan_df, ulg_out_df, escid_dict, firefly_tag)
+        # Synchornize data (and reset start times)
+        ulg_time_secs = DataframeTools.shortest_time_secs(ulg_dict)
+        escid_time_secs = DataframeTools.shortest_time_secs(escid_dict)
+        shortest_time_secs = np.linspace(
+            min(ulg_time_secs[0], escid_time_secs[0]),
+            max(ulg_time_secs[-1], escid_time_secs[-1]),
+            min(len(ulg_time_secs), len(escid_time_secs))
+        )
+        max_delta = 0.01
+        escid_dict = EscidPT.resample(escid_dict, shortest_time_secs, max_delta)
+        ulg_dict = UlgPT.resample(ulg_dict, shortest_time_secs, max_delta)
+        [escid_dict, ulg_dict] = FireflyParser.synchronize(escid_dict, ulg_dict)
+        self.plot_match_throttle(escid_dict, ulg_dict, firefly_tag)
+
+        # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.figsize)
+        # ref_df = escid_dict['esc11_df']
+        ref_df = ulg_dict['ulg_in_df']
+        ref_df.plot(subplots=True)
+        self.save_current_plot(firefly_tag, tag_arr=['ref_df_1'], sep="_",
+                               ext='.png')
+
+        [escid_dict, ulg_dict] = FireflyParser.filter_by_hover(
+            escid_dict, ulg_dict)
+        _ = ulg_dict
+
+        # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.figsize)
+        # ref_df = escid_dict['esc11_df']
+        ref_df = ulg_dict['ulg_in_df']
+        ref_df.plot(subplots=True)
+        self.save_current_plot(firefly_tag, tag_arr=['ref_df_2'], sep="_",
+                               ext='.png')
 
         arm_dict = FireflyParser.get_kdecan_arm_dict(escid_dict)
         self.plot_arm_power(arm_dict, firefly_tag)
 
-        # kdecan_shift = self.calculate_kdecan_shift(selected_escid=11, save_plot=True)
+        # kdecan_shift = self.calculate_kdecan_shift(
+        #     selected_escid=11, save_plot=True)
         # # self.plot_kdecan(kdecan_shift, firefly_tag)
 
-    def plot_match_throttle(self, kdecan_df, ulg_out_df, escid_dict, firefly_tag):
-        _ = kdecan_df
+    def plot_match_throttle(self, escid_dict, ulg_dict, firefly_tag):
         esc11_df = escid_dict['esc11_df']
         esc12_df = escid_dict['esc12_df']
         esc13_df = escid_dict['esc13_df']
@@ -70,6 +103,8 @@ class FireflyPlot:
         esc16_df = escid_dict['esc16_df']
         esc17_df = escid_dict['esc17_df']
         esc18_df = escid_dict['esc18_df']
+
+        ulg_out_df = ulg_dict['ulg_out_df']
 
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.figsize)
         ax1.grid(True)
@@ -81,14 +116,14 @@ class FireflyPlot:
 
         for i in range(0, 8):
             ax1.plot(ulg_out_df[f'output[{i}]'])
-            ax1.plot(esc11_df[f'inthtl us'])
-            ax1.plot(esc12_df[f'inthtl us'])
-            ax1.plot(esc13_df[f'inthtl us'])
-            ax1.plot(esc14_df[f'inthtl us'])
-            ax1.plot(esc15_df[f'inthtl us'])
-            ax1.plot(esc16_df[f'inthtl us'])
-            ax1.plot(esc17_df[f'inthtl us'])
-            ax1.plot(esc18_df[f'inthtl us'])
+        ax1.plot(esc11_df[f'inthtl us'])
+        ax1.plot(esc12_df[f'inthtl us'])
+        ax1.plot(esc13_df[f'inthtl us'])
+        ax1.plot(esc14_df[f'inthtl us'])
+        ax1.plot(esc15_df[f'inthtl us'])
+        ax1.plot(esc16_df[f'inthtl us'])
+        ax1.plot(esc17_df[f'inthtl us'])
+        ax1.plot(esc18_df[f'inthtl us'])
 
         ax2.plot(ulg_out_df[f'output[0]'], label='ulg')
         ax2.plot(esc11_df[f'inthtl us'], label='kdecan')
@@ -135,8 +170,8 @@ class FireflyPlot:
         ax3.set_ylabel("throttle us")
         ax3.set_xlabel("time s")
 
-        # df_tmp.plot(figsize=self.figsize, subplots=True)
-        # self.save_current_plot(firefly_tag, tag_arr=["escid{}".format(escid)], sep="_", ext='.png')
+        df_tmp.plot(figsize=self.figsize, subplots=True)
+        self.save_current_plot(firefly_tag, tag_arr=["escid{}".format(escid)], sep="_", ext='.png')
 
     def find_file(self, extension, log_num):
         selected_file = ''
@@ -165,11 +200,16 @@ if __name__ == '__main__':
                         help='Specific log file number to process')
     # parser.add_argument('--plot', action='store_true', required=False,
     #                     help='plot results')
-    # parser.add_argument('--pos_vel', action='store_true', help='pos and vel')
-    # parser.add_argument('--rpy_angles', action='store_true', help='roll, pitch and yaw attitude angles')
-    # parser.add_argument('--pqr_angvel', action='store_true', help='P, Q, and R body angular velocity')
-    # parser.add_argument('--man_ctrl', action='store_true', help='manual control')
-    # parser.add_argument('--ctrl_alloc', action='store_true', help='Control allocation and in/out analysis')
+    # parser.add_argument('--pos_vel', action='store_true',
+    #                     help='pos and vel')
+    # parser.add_argument('--rpy_angles', action='store_true',
+    #                     help='roll, pitch and yaw attitude angles')
+    # parser.add_argument('--pqr_angvel', action='store_true',
+    #                     help='P, Q, and R body angular velocity')
+    # parser.add_argument('--man_ctrl', action='store_true',
+    #                     help='manual control')
+    # parser.add_argument('--ctrl_alloc', action='store_true',
+    #                     help='Control allocation and in/out analysis')
 
     args = parser.parse_args()
 
