@@ -301,8 +301,8 @@ class EscOptimizer:
                     avg_cost_tot = avg_cost_m38 + avg_cost_m47*0
                     nsh_delta = nsh_delta - k * (avg_cost_tot_prev - avg_cost_tot)
 
-                    print(f'cnt_samples {cnt_samples}, avg_cost_tot {avg_cost_tot}, avg_cost_tot_prev {avg_cost_tot_prev}')
-                    print(f'cnt_samples {cnt_samples}, initial nsh_delta {nsh_delta}')
+                    print(f'avg_cost_tot {avg_cost_tot}, avg_cost_tot_prev {avg_cost_tot_prev}')
+                    print(f'initial nsh_delta {nsh_delta}')
 
                     # Max rate
                     max_delta_change = 0.05

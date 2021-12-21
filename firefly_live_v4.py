@@ -312,9 +312,10 @@ class EscOptimizer:
                         # In the last state 'nsh_delta' was going down
                         avg_cost_tot_down = avg_cost_tot
                         # Now it is time to decide where to go
-                        if avg_cost_tot_up < avg_cost_tot_down:
+                        avg_cost_tot_diff = avg_cost_tot_up - avg_cost_tot_down
+                        if avg_cost_tot_diff < 0:
                             nsh_delta = nsh_delta + max_abs_rate
-                        if avg_cost_tot_down <= avg_cost_tot_up:
+                        if avg_cost_tot_diff >= 0:
                             nsh_delta = nsh_delta - max_abs_rate
                         # Get ready for next iteration
                         optimizer_state = 0
@@ -334,7 +335,7 @@ class EscOptimizer:
                         print(f'{nsh_delta}={nsh_delta_prev}-{max_abs_rate}')
                         nsh_delta = nsh_delta_prev - max_abs_rate
                     # Max abs ranges
-                    max_abs_val = 0.3
+                    max_abs_val = 0.8
                     if nsh_delta >= +max_abs_val:
                         nsh_delta = +max_abs_val
                     if nsh_delta <= -max_abs_val:
