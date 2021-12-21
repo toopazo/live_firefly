@@ -275,11 +275,15 @@ class EscOptimizer:
         avg_cost_m38 = 0
         avg_cost_m47 = 0
         avg_cost_tot = 0
-        avg_cost_tot_prev = 0
         num_samples = np.ceil(cmd_period/sampling_period)
         cnt_samples = 0
         nsh_delta = 0
         nsh_delta_prev = 0
+        max_abs_rate = 0.05
+        avg_cost_tot_up = 0
+        avg_cost_tot_down = 0
+        avg_cost_tot_prev = 0
+        optimizer_state = 0
         try:
             while True:
                 cnt_samples = cnt_samples + 1
@@ -295,21 +299,40 @@ class EscOptimizer:
                 cost_m47_arr.append(cost_m47)
 
                 if cnt_samples >= num_samples:
-                    k = 1 * (1 / 100000)
                     avg_cost_m38 = np.average(cost_m38_arr)
                     avg_cost_m47 = np.average(cost_m47_arr)
                     avg_cost_tot = avg_cost_m38 + avg_cost_m47
-                    nsh_delta = nsh_delta - k * (avg_cost_tot_prev - avg_cost_tot)
-
-                    print(f'cnt_samples {cnt_samples}, avg_cost_tot {avg_cost_tot}, avg_cost_tot_prev {avg_cost_tot_prev}')
-                    print(f'cnt_samples {cnt_samples}, initial nsh_delta {nsh_delta}')
+                    if optimizer_state == 0:
+                        # In the last state 'nsh_delta' was going up
+                        avg_cost_tot_up = avg_cost_tot
+                        # Get ready for next iteration
+                        optimizer_state = 1
+                        nsh_delta = nsh_delta - max_abs_rate
+                    elif optimizer_state == 1:
+                        # In the last state 'nsh_delta' was going down
+                        avg_cost_tot_down = avg_cost_tot
+                        # Now it is time to decide where to go
+                        if avg_cost_tot_up < avg_cost_tot_down:
+                            nsh_delta = nsh_delta + max_abs_rate
+                        if avg_cost_tot_down <= avg_cost_tot_up:
+                            nsh_delta = nsh_delta - max_abs_rate
+                        # Get ready for next iteration
+                        optimizer_state = 0
+                        nsh_delta = nsh_delta - max_abs_rate
+                    else:
+                        raise RuntimeError('Bring the vehicle down')
 
                     # Max rate
-                    max_delta_change = 0.05
-                    if (nsh_delta - nsh_delta_prev) >= +max_delta_change:
-                        nsh_delta = nsh_delta_prev + max_delta_change
-                    if (nsh_delta - nsh_delta_prev) <= -max_delta_change:
-                        nsh_delta = nsh_delta_prev - max_delta_change
+                    if (nsh_delta - nsh_delta_prev) > +max_abs_rate:
+                        print('max rate was triggered')
+                        print('nsh_delta = nsh_delta_prev + max_delta_change')
+                        print(f'{nsh_delta}={nsh_delta_prev}+{max_abs_rate}')
+                        nsh_delta = nsh_delta_prev + max_abs_rate
+                    if (nsh_delta - nsh_delta_prev) < -max_abs_rate:
+                        print('max rate was triggered')
+                        print('nsh_delta = nsh_delta_prev - max_abs_rate')
+                        print(f'{nsh_delta}={nsh_delta_prev}-{max_abs_rate}')
+                        nsh_delta = nsh_delta_prev - max_abs_rate
                     # Max abs ranges
                     max_abs_val = 0.3
                     if nsh_delta >= +max_abs_val:
@@ -317,7 +340,8 @@ class EscOptimizer:
                     if nsh_delta <= -max_abs_val:
                         nsh_delta = -max_abs_val
 
-                    print(f'cnt_samples {cnt_samples}, nsh_delta {nsh_delta}, nsh_delta_prev {nsh_delta_prev}')
+                    print(f'optimizer_state {optimizer_state}, nsh_delta {nsh_delta}')
+                    print(f'avg_cost_tot_up {avg_cost_tot_up}, avg_cost_tot_down {avg_cost_tot_down}')
 
                     nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
                     fmavl_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))

@@ -298,7 +298,7 @@ class EscOptimizer:
                     k = 1 * (1 / 100000)
                     avg_cost_m38 = np.average(cost_m38_arr)
                     avg_cost_m47 = np.average(cost_m47_arr)
-                    avg_cost_tot = avg_cost_m38 + avg_cost_m47
+                    avg_cost_tot = avg_cost_m38 + avg_cost_m47*0
                     nsh_delta = nsh_delta - k * (avg_cost_tot_prev - avg_cost_tot)
 
                     print(f'cnt_samples {cnt_samples}, avg_cost_tot {avg_cost_tot}, avg_cost_tot_prev {avg_cost_tot_prev}')
