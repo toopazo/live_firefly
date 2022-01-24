@@ -1,23 +1,18 @@
-import copy
-import sys
-
 import argparse
 import pandas
-from scipy import signal
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from live_esc.kde_uas85uvc.kdecan_plot import KdecanPlot
-from live_esc.kde_uas85uvc.kdecan_parse import KdecanParser
-from toopazo_ulg.parse_file import UlgParser
+
 from toopazo_tools.file_folder import FileFolderTools as FFTools
-from firefly_parse import FireflyParser
-from firefly_parse import EscidParserTools as EscidPT
-from firefly_parse import UlgParserTools as UlgPT
-from firefly_parse import DataframeTools
+from live_esc.kde_uas85uvc.kdecan_parse import KdecanParser
+from firefly_parse_ku import KUParser
+from firefly_parse_ku import EscidParserTools as EscidPT
+from firefly_parse_ku import UlgParserTools as UlgPT
+from firefly_parse_ku import DataframeTools
 
 
-class FireflyPlot:
+class KUPlot:
     def __init__(self, bdir):
         self.logdir = bdir + '/logs'
         self.tmpdir = bdir + '/tmp'
@@ -30,16 +25,16 @@ class FireflyPlot:
             if not os.path.isdir(self.plotdir):
                 os.mkdir(self.logdir)
         except OSError:
-            raise RuntimeError('Directories are not present or could not be created')
+            raise RuntimeError(
+                'Directories are not present or could not be created')
 
         self.bdir = bdir
         self.figsize = (10, 6)
 
-        self.firefly_parser = None
-        # self.kdecan_plot = None
+        self.ku_parser = None
 
-    def save_current_plot(self, firefly_tag, tag_arr, sep, ext):
-        file_name = firefly_tag
+    def save_current_plot(self, file_tag, tag_arr, sep, ext):
+        file_name = file_tag
         for tag in tag_arr:
             file_name = file_name + sep + str(tag)
         file_path = self.plotdir + f'/' + file_name + ext
@@ -49,11 +44,10 @@ class FireflyPlot:
         plt.savefig(file_path)
         # return file_path
 
-    def process_file(self, kdecan_file, ulg_file, firefly_tag):
-        self.firefly_parser = FireflyParser(self.bdir, kdecan_file, ulg_file)
-        kdecan_df = self.firefly_parser.kdecan_df
-        escid_dict = FireflyParser.kdecan_to_escid_dict(kdecan_df)
-        ulg_dict = self.firefly_parser.ulg_dict
+    def process_file(self, kdecan_file, ulg_file, file_tag):
+        self.ku_parser = KUParser(self.bdir, kdecan_file, ulg_file)
+        escid_dict = self.ku_parser.escid_dict
+        ulg_dict = self.ku_parser.ulg_dict
 
         # Synchornize data (and reset start times)
         ulg_time_secs = DataframeTools.shortest_time_secs(ulg_dict)
@@ -66,17 +60,17 @@ class FireflyPlot:
         max_delta = 0.01
         escid_dict = EscidPT.resample(escid_dict, shortest_time_secs, max_delta)
         ulg_dict = UlgPT.resample(ulg_dict, shortest_time_secs, max_delta)
-        [escid_dict, ulg_dict] = FireflyParser.synchronize(escid_dict, ulg_dict)
-        self.plot_match_throttle(escid_dict, ulg_dict, firefly_tag)
+        [escid_dict, ulg_dict] = KUParser.synchronize(escid_dict, ulg_dict)
+        self.plot_match_throttle(escid_dict, ulg_dict, file_tag)
 
         # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.figsize)
         # ref_df = escid_dict['esc11_df']
         ref_df = ulg_dict['ulg_in_df']
         ref_df.plot(subplots=True)
-        self.save_current_plot(firefly_tag, tag_arr=['ref_df_1'], sep="_",
+        self.save_current_plot(file_tag, tag_arr=['ref_df_1'], sep="_",
                                ext='.png')
 
-        [escid_dict, ulg_dict] = FireflyParser.filter_by_hover(
+        [escid_dict, ulg_dict] = KUParser.filter_by_hover(
             escid_dict, ulg_dict)
         _ = ulg_dict
 
@@ -84,17 +78,17 @@ class FireflyPlot:
         # ref_df = escid_dict['esc11_df']
         ref_df = ulg_dict['ulg_in_df']
         ref_df.plot(subplots=True)
-        self.save_current_plot(firefly_tag, tag_arr=['ref_df_2'], sep="_",
+        self.save_current_plot(file_tag, tag_arr=['ref_df_2'], sep="_",
                                ext='.png')
 
-        arm_dict = FireflyParser.get_kdecan_arm_dict(escid_dict)
-        self.plot_arm_power(arm_dict, firefly_tag)
+        arm_dict = EscidPT.get_arm_dict(escid_dict)
+        self.plot_arm_power(arm_dict, file_tag)
 
         # kdecan_shift = self.calculate_kdecan_shift(
         #     selected_escid=11, save_plot=True)
-        # # self.plot_kdecan(kdecan_shift, firefly_tag)
+        # # self.plot_kdecan(kdecan_shift, file_tag)
 
-    def plot_match_throttle(self, escid_dict, ulg_dict, firefly_tag):
+    def plot_match_throttle(self, escid_dict, ulg_dict, file_tag):
         esc11_df = escid_dict['esc11_df']
         esc12_df = escid_dict['esc12_df']
         esc13_df = escid_dict['esc13_df']
@@ -129,9 +123,10 @@ class FireflyPlot:
         ax2.plot(esc11_df[f'inthtl us'], label='kdecan')
         ax2.legend()
 
-        self.save_current_plot(firefly_tag, tag_arr=['match_throttle'], sep="_", ext='.png')
+        self.save_current_plot(
+            file_tag, tag_arr=['match_throttle'], sep="_", ext='.png')
 
-    def plot_arm_power(self, arm_dict, firefly_tag):
+    def plot_arm_power(self, arm_dict, file_tag):
         for i in range(0, 4):
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=self.figsize)
             ax1.grid(True)
@@ -145,19 +140,22 @@ class FireflyPlot:
             [arm_power, arm_eta_angvel, arm_eta_throttle] = arm_dict[arm_key]
             ax1.scatter(arm_eta_angvel, arm_power)
             ax2.scatter(arm_eta_angvel, arm_eta_throttle)
-            self.save_current_plot(firefly_tag, tag_arr=[arm_key], sep="_", ext='.png')
+            self.save_current_plot(
+                file_tag, tag_arr=[arm_key], sep="_", ext='.png')
 
-    def plot_kdecan(self, kdecan_shift, firefly_tag):
-        kdecan_df = self.firefly_parser.kdecan_df
+    def plot_kdecan(self, kdecan_shift, file_tag):
+        kdecan_df = self.ku_parser.kdecan_df
         assert isinstance(kdecan_df, pandas.DataFrame)
 
-        col_arr = [KdecanParser.col_voltage, KdecanParser.col_current, KdecanParser.col_rpm, KdecanParser.col_inthtl]
+        col_arr = [KdecanParser.col_voltage, KdecanParser.col_current,
+                   KdecanParser.col_rpm, KdecanParser.col_inthtl]
         for escid in range(11, 19):
             df_tmp = kdecan_df[kdecan_df[KdecanParser.col_escid] == escid]
             df_tmp = df_tmp[col_arr]
-            df_tmp = FireflyPlot.apply_kdecan_shift(df_tmp, kdecan_shift)
-            power_in = np.array(df_tmp[KdecanParser.col_voltage].values) * np.array(
-                df_tmp[KdecanParser.col_current].values)
+            df_tmp = KUParser.apply_kdecan_shift(df_tmp, kdecan_shift)
+            # power_in = np.array(
+            #     df_tmp[KdecanParser.col_voltage].values) * np.array(
+            #     df_tmp[KdecanParser.col_current].values)
 
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=self.figsize)
         ax1.grid(True)
@@ -171,22 +169,24 @@ class FireflyPlot:
         ax3.set_xlabel("time s")
 
         df_tmp.plot(figsize=self.figsize, subplots=True)
-        self.save_current_plot(firefly_tag, tag_arr=["escid{}".format(escid)], sep="_", ext='.png')
+        self.save_current_plot(
+            file_tag, tag_arr=["escid{}".format(escid)], sep="_", ext='.png')
 
-    def find_file(self, extension, log_num):
-        selected_file = ''
-        file_arr = FFTools.get_file_arr(fpath=self.logdir, extension=extension)
-        for file in file_arr:
-            if log_num is not None:
-                pattern = f'_{log_num}_'
-                if pattern in file:
-                    selected_file = os.path.abspath(file)
-                    break
-        print(f'[find_file] logdir {self.logdir}')
-        print(f'[find_file] extension {extension}')
-        print(f'[find_file] log_num {log_num}')
-        print(f'[find_file] selected_file {selected_file}')
-        return selected_file
+
+def find_file_in_folder(fpath, extension, log_num):
+    selected_file = ''
+    file_arr = FFTools.get_file_arr(fpath=fpath, extension=extension)
+    for file in file_arr:
+        if log_num is not None:
+            pattern = f'_{log_num}_'
+            if pattern in file:
+                selected_file = os.path.abspath(file)
+                break
+    print(f'[find_file_in_folder] fpath {fpath}')
+    print(f'[find_file_in_folder] extension {extension}')
+    print(f'[find_file_in_folder] log_num {log_num}')
+    print(f'[find_file_in_folder] selected_file {selected_file}')
+    return selected_file
 
 
 if __name__ == '__main__':
@@ -194,31 +194,41 @@ if __name__ == '__main__':
         description='Parse, process and plot .kdecan files')
     parser.add_argument('--bdir', action='store', required=True,
                         help='Base directory of [logs, tmp, plots] folders')
-    parser.add_argument('--kdecan', action='store', required=True,
+    parser.add_argument('--kdecan', action='store', required=False,
                         help='Specific log file number to process')
-    parser.add_argument('--ulg', action='store', required=True,
+    parser.add_argument('--ulg', action='store', required=False,
                         help='Specific log file number to process')
-    # parser.add_argument('--plot', action='store_true', required=False,
-    #                     help='plot results')
-    # parser.add_argument('--pos_vel', action='store_true',
-    #                     help='pos and vel')
-    # parser.add_argument('--rpy_angles', action='store_true',
-    #                     help='roll, pitch and yaw attitude angles')
-    # parser.add_argument('--pqr_angvel', action='store_true',
-    #                     help='P, Q, and R body angular velocity')
-    # parser.add_argument('--man_ctrl', action='store_true',
-    #                     help='manual control')
-    # parser.add_argument('--ctrl_alloc', action='store_true',
-    #                     help='Control allocation and in/out analysis')
 
     args = parser.parse_args()
 
     abs_bdir = os.path.abspath(args.bdir)
-    firefly_plot = FireflyPlot(abs_bdir)
-    abs_kdecan_file = firefly_plot.find_file('.kdecan', args.kdecan)
-    abs_ulg_file = firefly_plot.find_file('.ulg', args.ulg)
-    abs_firefly_tag = f'kdecan_log_{args.kdecan}_ulg_log_{args.ulg}'
-    if os.path.isfile(abs_kdecan_file) and os.path.isfile(abs_ulg_file):
-        firefly_plot.process_file(abs_kdecan_file, abs_ulg_file, abs_firefly_tag)
-    else:
-        raise RuntimeError(f'No such files {abs_kdecan_file} or {abs_ulg_file}')
+    if (args.kdecan is not None) and (args.ulg is not None):
+        abs_kdecan_file = find_file_in_folder(
+            f'{abs_bdir}/logs', '.kdecan', args.kdecan)
+        abs_ulg_file = find_file_in_folder(
+            f'{abs_bdir}/logs', '.ulg', args.ulg)
+        print(f'kdecan file: {abs_kdecan_file}')
+        print(f'ulg file: {abs_ulg_file}')
+
+        ku_plot = KUPlot(abs_bdir)
+        abs_ku_tag = f'kdecan_log_{args.kdecan}_ulg_log_{args.ulg}'
+        ku_plot.process_file(abs_kdecan_file, abs_ulg_file, abs_ku_tag)
+        exit(0)
+
+        # abs_bdir = os.path.abspath(args.bdir)
+        # ku_plot = KUPlot(abs_bdir)
+        # abs_kdecan_file = ku_plot.find_file('.kdecan', args.kdecan)
+        # abs_ulg_file = ku_plot.find_file('.ulg', args.ulg)
+        # abs_ku_tag = f'kdecan_log_{args.kdecan}_ulg_log_{args.ulg}'
+        # if os.path.isfile(abs_kdecan_file) and os.path.isfile(abs_ulg_file):
+        #     ku_plot.process_file(
+        #         abs_kdecan_file, abs_ulg_file, abs_ku_tag)
+        # else:
+        #     raise RuntimeError(
+        #         f'No such files {abs_kdecan_file} or {abs_ulg_file}')
+
+    print('Error parsing user arguments')
+    print(f'firefly file: {args.firefly}')
+    print(f'kdecan file: {args.kdecan}')
+    print(f'ulg file: {args.ulg}')
+    exit(0)

@@ -1,12 +1,11 @@
 
+/venv/
+venv
+.idea/
+/.idea/
+/__pycache__/
+__pycache__
 
-venv/
-/venv
-__pycache__/
-/__pycache__
-
-/live_ars
-/live_esc
+*.pyc
 /logs
-/.idea
 

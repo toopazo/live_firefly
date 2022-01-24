@@ -136,4 +136,3 @@ if __name__ == '__main__':
                  "inthtl us, outthtl perc"
     log_header = f"{ars_header}, {esc_header}"
     telem_logger.live_data(sampling_period, log_header)
-

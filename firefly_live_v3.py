@@ -120,8 +120,8 @@ class EscOptimizer:
         # ]
         # ars_header = ", ".join(fields)
         # esc_header = "time s, escid, " \
-        #              "voltage V, current A, angVel rpm, temp degC, warning, " \
-        #              "inthtl us, outthtl perc"
+        #              "voltage V, current A, angVel rpm, temp degC, warning" \
+        #              ", inthtl us, outthtl perc"
         # sensor_header = f"{ars_header}, {esc_header}"
         parsed_data_arr = []
         for e in sensor_data.split(','):

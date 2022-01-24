@@ -1,9 +1,3 @@
-#!/usr/bin/python3
-
-# import numpy as np
-# import signal
-# import time
-# import datetime
 import time
 import queue
 import numpy as np
@@ -14,7 +8,7 @@ from firefly_mavlink_live import FireflyMavEnum, FireflyMavMsg, FireflyMavlink
 
 from live_ars.ars_interface import ArsIface
 from live_esc.kde_uas85uvc.kdecan_interface import KdeCanIface
-from ctrlalloc_interface import CtrlAllocIface
+# from ctrlalloc_interface import CtrlAllocIface
 
 
 class EscIfaceWrapper:
@@ -120,8 +114,8 @@ class EscOptimizer:
         # ]
         # ars_header = ", ".join(fields)
         # esc_header = "time s, escid, " \
-        #              "voltage V, current A, angVel rpm, temp degC, warning, " \
-        #              "inthtl us, outthtl perc"
+        #              "voltage V, current A, angVel rpm, temp degC, warning" \
+        #              ", inthtl us, outthtl perc"
         # sensor_header = f"{ars_header}, {esc_header}"
         parsed_data_arr = []
         for e in sensor_data.split(','):
@@ -245,7 +239,11 @@ class EscOptimizer:
         for i in range(0, num_rotors):
             escid = str(10 + i + 1)
             try:
-                # cost = parsed_data[f'voltage_{escid}'] * parsed_data[f'current_{escid}']
+                # esc data
+                # cost = parsed_data[f'voltage_{escid}'] * parsed_data[
+                #     f'current_{escid}']
+
+                # ars data
                 cost = parsed_data[f'voltage_{escid}'] * parsed_data[
                     f'cur_{escid}']
             except KeyError:
@@ -289,19 +287,30 @@ class EscOptimizer:
                 cnt_samples = cnt_samples + 1
 
                 sensor_data = sensor_iface.get_data()
-                fcost = EscOptimizer.sensor_data_to_cost_fnct(sensor_data=sensor_data)
+                fcost = EscOptimizer.sensor_data_to_cost_fnct(
+                    sensor_data=sensor_data)
                 # print(f'fcost {[round(e, 4) for e in fcost]}')
-                TelemetryLogger.busy_waiting(time0, sampling_period, sampling_period / 8)
+                TelemetryLogger.busy_waiting(
+                    time0, sampling_period, sampling_period / 8)
 
                 cost_m38 = fcost[3 - 1] + fcost[8 - 1]
                 cost_m47 = fcost[4 - 1] + fcost[7 - 1]
                 cost_m38_arr.append(cost_m38)
                 cost_m47_arr.append(cost_m47)
 
+                # Low battery check
+                if cnt_samples >= int(num_samples/4):
+                    parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
+                    m13_volage = parsed_data[f'voltage_13']
+                    min_voltage = 20
+                    if m13_volage <= min_voltage:
+                        print(f'Warning, low battery {m13_volage} !!!!!!!!!!!')
+
+                # Processing of previous time window
                 if cnt_samples >= num_samples:
                     avg_cost_m38 = np.average(cost_m38_arr)
                     avg_cost_m47 = np.average(cost_m47_arr)
-                    avg_cost_tot = avg_cost_m38 + avg_cost_m47
+                    avg_cost_tot = avg_cost_m38 + avg_cost_m47*0
                     if optimizer_state == 0:
                         # In the last state 'nsh_delta' was going up
                         avg_cost_tot_up = avg_cost_tot
@@ -341,11 +350,14 @@ class EscOptimizer:
                     if nsh_delta <= -max_abs_val:
                         nsh_delta = -max_abs_val
 
-                    print(f'optimizer_state {optimizer_state}, nsh_delta {nsh_delta}')
-                    print(f'avg_cost_tot_up {avg_cost_tot_up}, avg_cost_tot_down {avg_cost_tot_down}')
+                    print(f'optimizer_state {optimizer_state}, '
+                          f'nsh_delta {nsh_delta}')
+                    print(f'avg_cost_tot_up {avg_cost_tot_up}, '
+                          f'avg_cost_tot_down {avg_cost_tot_down}')
 
                     nsh_cmd = f'firefly write_delta {nsh_delta} {nsh_delta} 1'
-                    fmavl_queue.put(FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
+                    fmavl_queue.put(
+                        FireflyMavMsg(FireflyMavEnum.nsh_command, nsh_cmd))
 
                     # Next iteration
                     nsh_delta_prev = nsh_delta
@@ -354,7 +366,8 @@ class EscOptimizer:
                     cost_m47_arr = []
                     cnt_samples = 0
 
-                optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}, {avg_cost_tot}, {avg_cost_tot_prev}'
+                optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}, ' \
+                             f'{avg_cost_tot}, {avg_cost_tot_prev}'
                 sensor_data = f'{sensor_data}, {fcost}, {optim_data}'
                 telem_logger.save_data(log_data=sensor_data, log_header='')
 
