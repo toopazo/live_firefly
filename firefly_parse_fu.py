@@ -8,7 +8,7 @@ import os
 from sklearn.linear_model import LinearRegression
 from scipy.signal import savgol_filter
 
-from firefly_database import FileTagData
+# from firefly_database import FileTagData
 from firefly_parse_keys import UlgDictKeys
 from firefly_parse_keys import FireflyDfKeys, FireflyDfKeysMi
 from firefly_parse_keys import ArmDfKeys, ArmDfKeysMi
@@ -162,10 +162,10 @@ class FUParser:
     def parse_line_optim(line):
         indx = 20 + 9 * 8 + 8
         # firefly_live_v4.py
-        # optim_data = f'{nsh_delta}, {avg_cost_m38}, {avg_cost_m47}, ' \
+        # optim_data = f'{nsh_cmd}, {avg_cost_m38}, {avg_cost_m47}, ' \
         #              f'{avg_cost_tot}, {avg_cost_tot_prev}'
         line_dict = {
-            'nsh_delta': float(line[indx+0].replace('[', '')),
+            'nsh_cmd': float(line[indx+0].replace('[', '')),
             'avg_cost_m38': float(line[indx+1]),
             'avg_cost_m47': float(line[indx+2]),
             'avg_cost_tot': float(line[indx+3]),
@@ -694,17 +694,17 @@ class FUParser:
                 delta_upper = min_ars - min_esc
                 ff_df[ff_key_mi.cur] = ff_df[ff_key_mi.cur] + delta_upper
 
-        if esc_cal_type == 'use_file_tag':
-            data_dict = FileTagData.data_dict(file_tag)
-            cbias = data_dict['cur_bias']
-            ff_df[FireflyDfKeys.m1.cur] = ff_df[FireflyDfKeys.m1.cur] + cbias[0]
-            ff_df[FireflyDfKeys.m2.cur] = ff_df[FireflyDfKeys.m2.cur] + cbias[1]
-            ff_df[FireflyDfKeys.m3.cur] = ff_df[FireflyDfKeys.m3.cur] + cbias[2]
-            ff_df[FireflyDfKeys.m4.cur] = ff_df[FireflyDfKeys.m4.cur] + cbias[3]
-            ff_df[FireflyDfKeys.m5.cur] = ff_df[FireflyDfKeys.m5.cur] + cbias[4]
-            ff_df[FireflyDfKeys.m6.cur] = ff_df[FireflyDfKeys.m6.cur] + cbias[5]
-            ff_df[FireflyDfKeys.m7.cur] = ff_df[FireflyDfKeys.m7.cur] + cbias[6]
-            ff_df[FireflyDfKeys.m8.cur] = ff_df[FireflyDfKeys.m8.cur] + cbias[7]
+        # if esc_cal_type == 'use_file_tag':
+        #     data_dict = FileTagData.data_dict(file_tag)
+        #     cbias = data_dict['cur_bias']
+        #     ff_df[FireflyDfKeys.m1.cur] = ff_df[FireflyDfKeys.m1.cur] + cbias[0]
+        #     ff_df[FireflyDfKeys.m2.cur] = ff_df[FireflyDfKeys.m2.cur] + cbias[1]
+        #     ff_df[FireflyDfKeys.m3.cur] = ff_df[FireflyDfKeys.m3.cur] + cbias[2]
+        #     ff_df[FireflyDfKeys.m4.cur] = ff_df[FireflyDfKeys.m4.cur] + cbias[3]
+        #     ff_df[FireflyDfKeys.m5.cur] = ff_df[FireflyDfKeys.m5.cur] + cbias[4]
+        #     ff_df[FireflyDfKeys.m6.cur] = ff_df[FireflyDfKeys.m6.cur] + cbias[5]
+        #     ff_df[FireflyDfKeys.m7.cur] = ff_df[FireflyDfKeys.m7.cur] + cbias[6]
+        #     ff_df[FireflyDfKeys.m8.cur] = ff_df[FireflyDfKeys.m8.cur] + cbias[7]
 
         smooth = False
         if smooth:
@@ -1148,7 +1148,7 @@ class FUParser:
         return linreg_dict
 
     @staticmethod
-    def calculate_nsh_delta(firefly_df, arm_df, ulg_dict):
+    def calculate_nsh_cmd(firefly_df, arm_df, ulg_dict):
         _ = firefly_df, arm_df
 
         ulg_in_df = ulg_dict[UlgDictKeys.ulg_in_df]
@@ -1217,8 +1217,566 @@ class FUParser:
         x_in_hat = np.transpose(np.array(x_in_hat))
         # x_nvxns = x_in_hat
         x_in_hat[3, :] = x_in_hat[3, :] + 0.5
-        nsh_delta = copy.deepcopy(x_in_hat[4:8, :])
-        return [x_in, x_in_hat, nsh_delta]
+        nsh_cmd = np.array(copy.deepcopy(x_in_hat[4:8, :]))
+        return [x_in, x_in_hat, nsh_cmd]
+
+    @staticmethod
+    def load_kdecf245dp_35_2p0_0p9_bet_df():
+        # betfile = '/home/tzo4/Dropbox/tomas/pennState_avia/software/' \
+        #           'static_MT_BET_analysis/python_code/img/' \
+        #           'img_collective_roar/'
+        betfile = 'bet_coax_eta_thrust_KDECF245DP_35_2.0_0.9.txt'
+
+        bet_df = pandas.read_csv(betfile, delimiter=',', float_precision='high')
+        rn_dict = {
+            'Var1': 'bet_m1_thrust',
+            'Var2': 'bet_m2_thrust',
+            'Var3': 'bet_eta_thrust',
+            'Var4': 'bet_m1_omega',
+            'Var5': 'bet_m2_omega',
+            'Var6': 'bet_eta_omega',
+            'Var7': 'bet_m1_power',
+            'Var8': 'bet_m2_power',
+            'Var9': 'bet_coax_power',
+        }
+        bet_df = bet_df.rename(columns=rn_dict)
+
+        rads_to_rpm = 30 / np.pi
+        domega = bet_df['bet_m1_omega'].values - bet_df['bet_m2_omega'].values
+        bet_df['bet_delta_rpm'] = domega * rads_to_rpm
+
+        return bet_df
+
+    @staticmethod
+    def calculate_nshstats_df(firefly_df, arm_df, ulg_dict, file_tag):
+        nsh_dict = FUParser.calculate_nsh_dict(
+            firefly_df, arm_df, ulg_dict, file_tag, False)
+
+        new_dict = {}
+        cmd_arr = []
+        for nsh_key in nsh_dict.keys():
+            nsh_data = nsh_dict[nsh_key]
+
+            split_arr = nsh_key.split('_')
+            # nsh_key = f'i0_{i0}_i1_{i1}_nsh_{nsh_cmd}'
+            # split_arr = 0   1   2   3   4   5
+            # i0 = int(split_arr[1])
+            # i1 = int(split_arr[3])
+            cmd = float(split_arr[5])
+            # print(f'i0 {i0}, i1 {i1}, cmd {cmd}')
+
+            cmd_arr.append(cmd)
+
+            for nsh_data_key in nsh_data.keys():
+                df = nsh_data[nsh_data_key]
+                df_mean = np.mean(df.values)
+                df_std = np.std(df.values)
+
+                key_mean = f'{nsh_data_key}_mean'
+                key_std = f'{nsh_data_key}_std'
+
+                try:
+                    new_dict[key_mean].append(df_mean)
+                    new_dict[key_std].append(df_std)
+                except KeyError:
+                    new_dict[key_mean] = [df_mean]
+                    new_dict[key_std] = [df_std]
+
+                if nsh_data_key == 'm16_pow_esc':
+                    t0 = df.index[0]
+                    t1 = df.index[-1]
+                    key_time0 = 'time0'
+                    key_time1 = 'time1'
+                    try:
+                        new_dict[key_time0].append(t0)
+                        new_dict[key_time1].append(t1)
+                    except KeyError:
+                        new_dict[key_time0] = [t0]
+                        new_dict[key_time1] = [t1]
+
+                # # new_nsh_dict[nsh_data_key].append(val)
+                # print(f'nsh_dict.keys() {nsh_dict.keys()}')
+                # print(f'nsh_data.keys() {nsh_data.keys()}')
+                # print(f'nsh_key {nsh_key}')
+                # print(f'nsh_data_key {nsh_data_key}')
+                # print(f'nsh_data[nsh_data_key] {nsh_data[nsh_data_key]}')
+                # exit(0)
+
+        new_dict['delta_cmd'] = cmd_arr
+        cmd_drpm = 1650 * np.array(cmd_arr)
+        new_dict['cmd_delta_rpm'] = cmd_drpm
+        new_dict['nsh_dict_keys'] = nsh_dict.keys()
+        m16_devsq = (np.array(new_dict['m16_delta_rpm_mean']) - cmd_drpm)**2
+        m25_devsq = (np.array(new_dict['m25_delta_rpm_mean']) - cmd_drpm)**2
+        m38_devsq = (np.array(new_dict['m38_delta_rpm_mean']) - cmd_drpm)**2
+        m47_devsq = (np.array(new_dict['m47_delta_rpm_mean']) - cmd_drpm)**2
+        sum_devsq = m16_devsq + m25_devsq + m38_devsq + m47_devsq
+        new_dict['rmsd_delta_rpm'] = np.sqrt(sum_devsq / 4)
+        # print(f'new_nsh_dict.keys() {new_nsh_dict.keys()}')
+
+        nshstats_df = pandas.DataFrame.from_dict(
+            data=new_dict, orient='columns', dtype=None, columns=None)
+        # print(nshstats_df)
+        # Remove repeated delta_cmd with highest m16_pow_esc_std
+        # iarr = [0, 1, 2, 3, 4, 11, 12, 13, 14]
+        # nshstats_df.drop(index=iarr, inplace=True)
+        # nshstats_df.index = nshstats_df['delta_cmd']
+        # nshstats_df.drop(columns='delta_cmd', inplace=True)
+
+        return nshstats_df
+
+    @staticmethod
+    def calculate_nsh_dict(firefly_df, arm_df, ulg_dict, file_tag, verbose):
+        # data_dict = FileTagData.data_dict(file_tag)
+        if (file_tag == 'firefly_log_54_ulg_log_109') or \
+                (file_tag == 'firefly_log_32_ulg_log_105'):
+            nsh_dict = FUParser.nsh_dict_for_ulg_log_105_and_109(
+                firefly_df, arm_df, ulg_dict)
+        elif file_tag == 'firefly_log_7_ulg_log_137':
+            nsh_dict = FUParser.nsh_dict_for_ulg_log_145(
+                firefly_df, arm_df, ulg_dict)
+        elif file_tag == 'firefly_log_5_ulg_log_143':
+            nsh_dict = FUParser.nsh_dict_for_ulg_log_145(
+                firefly_df, arm_df, ulg_dict)
+        elif file_tag == 'firefly_log_8_ulg_log_144':
+            nsh_dict = FUParser.nsh_dict_for_ulg_log_145(
+                firefly_df, arm_df, ulg_dict)
+        elif file_tag == 'firefly_log_9_ulg_log_145':
+            nsh_dict = FUParser.nsh_dict_for_ulg_log_145(
+                firefly_df, arm_df, ulg_dict)
+        else:
+            raise RuntimeError
+        if verbose:
+            print(f'[calculate_nsh_dict] nsh_dict.keys() {nsh_dict.keys()}')
+        return nsh_dict
+
+    @staticmethod
+    def nsh_dict_for_ulg_log_145(firefly_df, arm_df, ulg_dict):
+        # print('[nsh_dict_for_ulg_log_109] Calculating nsh windows ..')
+
+        ulg_in_df = ulg_dict[UlgDictKeys.ulg_in_df]
+        ulg_pv_df = ulg_dict[UlgDictKeys.ulg_pv_df]
+        ulg_angvel_df = ulg_dict[UlgDictKeys.ulg_angvel_df]
+
+        # [x_in, x_in_hat, nsh_cmd] = FUParser.calculate_nsh_cmd(
+        #     firefly_df, arm_df, ulg_dict)
+        # _ = x_in, x_in_hat
+        nsh_cmd = firefly_df[FireflyDfKeys.nsh_cmd]
+        firefly_df[FireflyDfKeys.nsh_cmd] = np.around(
+            nsh_cmd.values * 2, decimals=1) / 2
+        nsh_cmd = firefly_df[FireflyDfKeys.nsh_cmd]
+        # print(f'nsh_cmd {nsh_cmd}')
+
+        # for i in range(0, int(len(nsh_cmd.index) / 10)):
+        #     print(f'nsh_cmd.index[{i}] {nsh_cmd.index[i]} '
+        #           f'nsh_cmd.iloc[{i}] {nsh_cmd.iloc[i]}')
+        # exit(0)
+        nsh_cmd = nsh_cmd.values
+
+        m16_pow_esc = arm_df[ArmDfKeys.m16.pow_esc]
+        m25_pow_esc = arm_df[ArmDfKeys.m25.pow_esc]
+        m38_pow_esc = arm_df[ArmDfKeys.m38.pow_esc]
+        m47_pow_esc = arm_df[ArmDfKeys.m47.pow_esc]
+        tot_pow_esc = m16_pow_esc + m25_pow_esc + m38_pow_esc + m47_pow_esc
+
+        m38_pow_ars = arm_df[ArmDfKeys.m38.pow_ars]
+        m47_pow_ars = arm_df[ArmDfKeys.m47.pow_ars]
+
+        m16_delta_rpm = arm_df[ArmDfKeys.m16.delta_rpm]
+        m25_delta_rpm = arm_df[ArmDfKeys.m25.delta_rpm]
+        m38_delta_rpm = arm_df[ArmDfKeys.m38.delta_rpm]
+        m47_delta_rpm = arm_df[ArmDfKeys.m47.delta_rpm]
+        net_delta_rpm = (m16_delta_rpm - m25_delta_rpm +
+                         m38_delta_rpm - m47_delta_rpm)
+        mean_delta_rpm = (m16_delta_rpm + m25_delta_rpm +
+                          m38_delta_rpm + m47_delta_rpm) / 4
+
+        m1_rpm = firefly_df[FireflyDfKeys.m1.rpm]
+        m2_rpm = firefly_df[FireflyDfKeys.m2.rpm]
+        m3_rpm = firefly_df[FireflyDfKeys.m3.rpm]
+        m4_rpm = firefly_df[FireflyDfKeys.m4.rpm]
+        m5_rpm = firefly_df[FireflyDfKeys.m5.rpm]
+        m6_rpm = firefly_df[FireflyDfKeys.m6.rpm]
+        m7_rpm = firefly_df[FireflyDfKeys.m7.rpm]
+        m8_rpm = firefly_df[FireflyDfKeys.m8.rpm]
+        mean_tot_rpm = (m1_rpm + m2_rpm + m3_rpm + m4_rpm +
+                        m5_rpm + m6_rpm + m7_rpm + m8_rpm) / 8
+
+        m16_eta_rpm = arm_df[ArmDfKeys.m16.eta_rpm]
+        m25_eta_rpm = arm_df[ArmDfKeys.m25.eta_rpm]
+        m38_eta_rpm = arm_df[ArmDfKeys.m38.eta_rpm]
+        m47_eta_rpm = arm_df[ArmDfKeys.m47.eta_rpm]
+        mean_eta_rpm = (m16_eta_rpm + m25_eta_rpm +
+                        m38_eta_rpm + m47_eta_rpm) / 4
+
+        nsh_decimals = 2
+        nsh_min_diff = 0.03
+
+        # nsh_arr = np.around(nsh_arr, decimals=nsh_decimals)
+        # nsh_arr = np.around(nsh_arr / 0.05, decimals=0) * 0.05
+        # round(number * 2) / 2
+
+        nsh_diff = np.diff(nsh_cmd)
+        nsh_diff = np.insert(nsh_diff, obj=0, values=nsh_diff[0])
+        indx_nsh_change = np.argwhere(np.abs(nsh_diff) > nsh_min_diff)
+        indx_nsh_change = indx_nsh_change.squeeze()
+        # indx_nsh_change = indx_nsh_change.append(len(nsh_arr) - 1)
+        if len(indx_nsh_change) == 0:
+            # there were no changes in nsh_cmd
+            indx_nsh_change = [len(nsh_diff) - 1]
+        # print(f'indx_nsh_change {indx_nsh_change}')
+        # print(f'nsh_arr[indx_nsh_change] {nsh_cmd[indx_nsh_change]}')
+
+        # nsh_dict = {'nsh_arr': nsh_arr, 'nsh_diff': nsh_diff}
+        nsh_dict = {}
+        prev_indx = 0
+        for indx in indx_nsh_change:
+            i0 = prev_indx
+            i1 = indx - 1
+            t0 = round(m16_pow_esc.index[i0], 2)
+            t1 = round(m16_pow_esc.index[i1], 2)
+            if (t1-t0) < 1:
+                print(f'[nsh_dict_for_ulg_log_145] (t1-t0) < 3')
+                print(f'[nsh_dict_for_ulg_log_145] ({t1}-{t0}) < 3')
+
+            # windows is from i0 to i1 (inclusive), thus range is [i0:i1+1]
+            i2 = i1 + 1
+
+            nsh_data = {
+                'm16_pow_esc': m16_pow_esc.iloc[i0:i2],
+                'm25_pow_esc': m25_pow_esc.iloc[i0:i2],
+                'm38_pow_esc': m38_pow_esc.iloc[i0:i2],
+                'm47_pow_esc': m47_pow_esc.iloc[i0:i2],
+                'tot_pow_esc': tot_pow_esc.iloc[i0:i2],
+                'm38_pow_ars': m38_pow_ars.iloc[i0:i2],
+                'm47_pow_ars': m47_pow_ars.iloc[i0:i2],
+
+                'm16_delta_rpm': m16_delta_rpm.iloc[i0:i2],
+                'm25_delta_rpm': m25_delta_rpm.iloc[i0:i2],
+                'm38_delta_rpm': m38_delta_rpm.iloc[i0:i2],
+                'm47_delta_rpm': m47_delta_rpm.iloc[i0:i2],
+                'net_delta_rpm': net_delta_rpm.iloc[i0:i2],
+                'mean_delta_rpm': mean_delta_rpm.iloc[i0:i2],
+
+                'mean_tot_rpm': mean_tot_rpm.iloc[i0:i2],
+
+                'm16_eta_rpm': m16_eta_rpm.iloc[i0:i2],
+                'm25_eta_rpm': m25_eta_rpm.iloc[i0:i2],
+                'm38_eta_rpm': m38_eta_rpm.iloc[i0:i2],
+                'm47_eta_rpm': m47_eta_rpm.iloc[i0:i2],
+                'mean_eta_rpm': mean_eta_rpm.iloc[i0:i2],
+
+                'r_rate_cmd': ulg_in_df[UlgInDfKeys.r_rate_cmd].iloc[i0:i2],
+                'vel_norm': ulg_pv_df[UlgPvDfKeys.vel_norm].iloc[i0:i2],
+                'pqr_norm': ulg_angvel_df[UlgAngvelDf.pqr_norm].iloc[i0:i2],
+            }
+
+            nsh_window = nsh_cmd[i0:i2]
+            cmd = round(np.mean(nsh_window), nsh_decimals)
+            # nsh_key = f'i0_{i0}_i1_{i1}_t0_{t0}_t1_{t1}_nsh_{nsh}'
+            nsh_key = f'i0_{i0}_i1_{i1}_cmd_{cmd}'
+            nsh_dict[nsh_key] = copy.deepcopy(nsh_data)
+            # split_arr = nsh_key.split('_')
+            # print(f' '.join(split_arr))
+            # print(nsh_key)
+
+            prev_indx = indx
+
+        # print(m16_pow_esc.shape)
+        # print(nsh_dict['nshpow 0.0'])
+
+        return nsh_dict
+
+    @staticmethod
+    def nsh_dict_for_ulg_log_105_and_109(firefly_df, arm_df, ulg_dict):
+        # print('[nsh_dict_for_ulg_log_109] Calculating nsh windows ..')
+
+        ulg_in_df = ulg_dict[UlgDictKeys.ulg_in_df]
+        ulg_pv_df = ulg_dict[UlgDictKeys.ulg_pv_df]
+        ulg_angvel_df = ulg_dict[UlgDictKeys.ulg_angvel_df]
+
+        [x_in, x_in_hat, nsh_cmd] = FUParser.calculate_nsh_cmd(
+            firefly_df, arm_df, ulg_dict)
+        _ = x_in, x_in_hat
+
+        m16_pow_esc = arm_df[ArmDfKeys.m16.pow_esc]
+        m25_pow_esc = arm_df[ArmDfKeys.m25.pow_esc]
+        m38_pow_esc = arm_df[ArmDfKeys.m38.pow_esc]
+        m47_pow_esc = arm_df[ArmDfKeys.m47.pow_esc]
+        tot_pow_esc = m16_pow_esc + m25_pow_esc + m38_pow_esc + m47_pow_esc
+        # print(f"tot_pow_esc {tot_pow_esc}")
+
+        m38_pow_ars = arm_df[ArmDfKeys.m38.pow_ars]
+        m47_pow_ars = arm_df[ArmDfKeys.m47.pow_ars]
+
+        m16_delta_rpm = arm_df[ArmDfKeys.m16.delta_rpm]
+        m25_delta_rpm = arm_df[ArmDfKeys.m25.delta_rpm]
+        m38_delta_rpm = arm_df[ArmDfKeys.m38.delta_rpm]
+        m47_delta_rpm = arm_df[ArmDfKeys.m47.delta_rpm]
+        net_delta_rpm = (m16_delta_rpm - m25_delta_rpm +
+                         m38_delta_rpm - m47_delta_rpm)
+        mean_delta_rpm = (m16_delta_rpm + m25_delta_rpm +
+                          m38_delta_rpm + m47_delta_rpm) / 4
+
+        m1_rpm = firefly_df[FireflyDfKeys.m1.rpm]
+        m2_rpm = firefly_df[FireflyDfKeys.m2.rpm]
+        m3_rpm = firefly_df[FireflyDfKeys.m3.rpm]
+        m4_rpm = firefly_df[FireflyDfKeys.m4.rpm]
+        m5_rpm = firefly_df[FireflyDfKeys.m5.rpm]
+        m6_rpm = firefly_df[FireflyDfKeys.m6.rpm]
+        m7_rpm = firefly_df[FireflyDfKeys.m7.rpm]
+        m8_rpm = firefly_df[FireflyDfKeys.m8.rpm]
+        mean_tot_rpm = (m1_rpm + m2_rpm + m3_rpm + m4_rpm +
+                        m5_rpm + m6_rpm + m7_rpm + m8_rpm) / 8
+
+        m16_eta_rpm = arm_df[ArmDfKeys.m16.eta_rpm]
+        m25_eta_rpm = arm_df[ArmDfKeys.m25.eta_rpm]
+        m38_eta_rpm = arm_df[ArmDfKeys.m38.eta_rpm]
+        m47_eta_rpm = arm_df[ArmDfKeys.m47.eta_rpm]
+
+        nsh_decimals = 1
+        nsh_min_diff = 0.03
+
+        nsh_i = 0
+        nsh_arr = nsh_cmd[nsh_i, :]
+        nsh_arr = np.around(nsh_arr, decimals=nsh_decimals)
+        # nsh_arr = np.around(nsh_arr / 0.05, decimals=0) * 0.05
+        # round(number * 2) / 2
+
+        nsh_diff = np.diff(nsh_arr)
+        nsh_diff = np.insert(nsh_diff, obj=0, values=nsh_diff[0])
+        indx_nsh_change = np.argwhere(np.abs(nsh_diff) > nsh_min_diff)
+        indx_nsh_change = indx_nsh_change.squeeze()
+        # indx_nsh_change = indx_nsh_change.append(len(nsh_arr) - 1)
+        if len(indx_nsh_change) == 0:
+            # there were no changes in nsh_cmd
+            indx_nsh_change = [len(nsh_diff)-1]
+        # print(f'indx_nsh_change {indx_nsh_change}')
+        # print(f'nsh_arr[indx_nsh_change] {nsh_arr[indx_nsh_change]}')
+
+        # nsh_dict = {'nsh_arr': nsh_arr, 'nsh_diff': nsh_diff}
+        nsh_dict = {}
+        prev_indx = 0
+        for indx in indx_nsh_change:
+            i0 = prev_indx
+            i1 = indx - 1
+            t0 = round(m16_pow_esc.index[i0], 2)
+            t1 = round(m16_pow_esc.index[i1], 2)
+            if (t1-t0) < 3:
+                print(f'[nsh_dict_for_ulg_log_105_and_109] (t1-t0) < 3')
+                print(f'[nsh_dict_for_ulg_log_105_and_109] ({t1}-{t0}) < 3')
+
+            # windows is from i0 to i1 (inclusive), thus range is [i0:i1+1]
+            i2 = i1 + 1
+
+            nsh_data = {
+                'm16_pow_esc': m16_pow_esc.iloc[i0:i2],
+                'm25_pow_esc': m25_pow_esc.iloc[i0:i2],
+                'm38_pow_esc': m38_pow_esc.iloc[i0:i2],
+                'm47_pow_esc': m47_pow_esc.iloc[i0:i2],
+                'tot_pow_esc': tot_pow_esc.iloc[i0:i2],
+                'm38_pow_ars': m38_pow_ars.iloc[i0:i2],
+                'm47_pow_ars': m47_pow_ars.iloc[i0:i2],
+
+                'm16_delta_rpm': m16_delta_rpm.iloc[i0:i2],
+                'm25_delta_rpm': m25_delta_rpm.iloc[i0:i2],
+                'm38_delta_rpm': m38_delta_rpm.iloc[i0:i2],
+                'm47_delta_rpm': m47_delta_rpm.iloc[i0:i2],
+                'net_delta_rpm': net_delta_rpm.iloc[i0:i2],
+                'mean_delta_rpm': mean_delta_rpm.iloc[i0:i2],
+
+                'mean_tot_rpm': mean_tot_rpm.iloc[i0:i2],
+
+                'm16_eta_rpm': m16_eta_rpm.iloc[i0:i2],
+                'm25_eta_rpm': m25_eta_rpm.iloc[i0:i2],
+                'm38_eta_rpm': m38_eta_rpm.iloc[i0:i2],
+                'm47_eta_rpm': m47_eta_rpm.iloc[i0:i2],
+
+                'r_rate_cmd': ulg_in_df[UlgInDfKeys.r_rate_cmd].iloc[i0:i2],
+                'vel_norm': ulg_pv_df[UlgPvDfKeys.vel_norm].iloc[i0:i2],
+                'pqr_norm': ulg_angvel_df[UlgAngvelDf.pqr_norm].iloc[i0:i2],
+            }
+
+            nsh_window = nsh_arr[i0:i2]
+            cmd = round(np.mean(nsh_window), nsh_decimals)
+            # nsh_key = f'i0_{i0}_i1_{i1}_t0_{t0}_t1_{t1}_nsh_{nsh}'
+            nsh_key = f'i0_{i0}_i1_{i1}_cmd_{cmd}'
+            nsh_dict[nsh_key] = copy.deepcopy(nsh_data)
+            # split_arr = nsh_key.split('_')
+            # print(f' '.join(split_arr))
+            # print(nsh_key)
+
+            prev_indx = indx
+
+        # print(m16_pow_esc.shape)
+        # print(nsh_dict['nshpow 0.0'])
+
+        return nsh_dict
+
+    @staticmethod
+    def calculate_powstat_dict(arm_df):
+        # calculate_power_by_x_ranges
+        m16_eta_rpm = arm_df[ArmDfKeys.m16.eta_rpm].values
+        m25_eta_rpm = arm_df[ArmDfKeys.m25.eta_rpm].values
+        m38_eta_rpm = arm_df[ArmDfKeys.m38.eta_rpm].values
+        m47_eta_rpm = arm_df[ArmDfKeys.m47.eta_rpm].values
+
+        m16_delta_rpm = arm_df[ArmDfKeys.m16.delta_rpm].values
+        m25_delta_rpm = arm_df[ArmDfKeys.m25.delta_rpm].values
+        m38_delta_rpm = arm_df[ArmDfKeys.m38.delta_rpm].values
+        m47_delta_rpm = arm_df[ArmDfKeys.m47.delta_rpm].values
+
+        m16_pow_esc = arm_df[ArmDfKeys.m16.pow_esc].values
+        m25_pow_esc = arm_df[ArmDfKeys.m25.pow_esc].values
+        m38_pow_esc = arm_df[ArmDfKeys.m38.pow_esc].values
+        m47_pow_esc = arm_df[ArmDfKeys.m47.pow_esc].values
+
+        min_ns = 10
+        stat_dict = {}
+
+        dx = 100
+        delta_rpm = np.arange(-1400 + dx / 2, +1500 + dx, dx)
+        # print(f'delta_rpm {delta_rpm}')
+
+        xkey_arr = [
+            'm16_delta_rpm', 'm25_delta_rpm', 'm38_delta_rpm', 'm47_delta_rpm']
+        xvar_arr = [m16_delta_rpm, m25_delta_rpm, m38_delta_rpm, m47_delta_rpm]
+        ykey_arr = [
+            'm16_pow_esc', 'm25_pow_esc', 'm38_pow_esc', 'm47_pow_esc']
+        yvar_arr = [m16_pow_esc, m25_pow_esc, m38_pow_esc, m47_pow_esc]
+        for x_arr, y_arr, x_key, y_key in zip(
+                xvar_arr, yvar_arr, xkey_arr, ykey_arr):
+            x_mean, x_std, y_mean, y_std = FUParser.stats_by_index_of_x_arr(
+                y_arr=y_arr, x_arr=x_arr, x_ranges=delta_rpm, min_samples=min_ns)
+            stat_dict[f'{x_key}_mean'] = x_mean
+            stat_dict[f'{x_key}_std'] = x_std
+            stat_dict[f'{x_key}_mean_{y_key}_mean'] = y_mean
+            stat_dict[f'{x_key}_mean_{y_key}_std'] = y_std
+
+        dx = 0.1 / 2
+        eta_rpm = np.arange(dx + dx / 2, 2.0 + dx, dx)
+        # eta_rpm = eta_rpm - dx
+        # print(f'eta_rpm {eta_rpm}')
+
+        xkey_arr = [
+            'm16_eta_rpm', 'm25_eta_rpm', 'm38_eta_rpm', 'm47_eta_rpm']
+        xvar_arr = [m16_eta_rpm, m25_eta_rpm, m38_eta_rpm, m47_eta_rpm]
+        ykey_arr = [
+            'm16_pow_esc', 'm25_pow_esc', 'm38_pow_esc', 'm47_pow_esc']
+        yvar_arr = [m16_pow_esc, m25_pow_esc, m38_pow_esc, m47_pow_esc]
+        for x_arr, y_arr, x_key, y_key in zip(
+                xvar_arr, yvar_arr, xkey_arr, ykey_arr):
+            x_mean, x_std, y_mean, y_std = FUParser.stats_by_index_of_x_arr(
+                y_arr=y_arr, x_arr=x_arr, x_ranges=eta_rpm, min_samples=min_ns)
+
+            stat_dict[f'{x_key}_mean'] = x_mean
+            stat_dict[f'{x_key}_std'] = x_std
+            stat_dict[f'{x_key}_mean_{y_key}_mean'] = y_mean
+            stat_dict[f'{x_key}_mean_{y_key}_std'] = y_std
+
+        # print(stat_dict.keys())
+        return stat_dict
+
+    @staticmethod
+    def stats_by_index_of_x_arr(y_arr, x_arr, x_ranges, min_samples):
+        val_dict = {}
+        x_prev = x_ranges[0]
+        for x in x_ranges[1:]:
+            mask = (x_arr > x_prev) & (x_arr < x)
+            indx = np.argwhere(mask)
+            # print(f'x_prev {x_prev} x {x}')
+            # print(f'mask {mask}, indx {indx}')
+            if len(indx) > min_samples:
+                # min_val = np.min(val_arr[indx])
+                # max_val = np.max(val_arr[indx])
+                # print(f'min_val {min_val}, max_val {max_val}')
+                x_mean = np.mean(x_arr[indx])
+                x_std = np.std(x_arr[indx])
+                y_mean = np.mean(y_arr[indx])
+                y_std = np.std(y_arr[indx])
+            else:
+                # x_mean = np.nan
+                # x_std = np.nan
+                # y_mean = np.nan
+                # y_std = np.nan
+                continue
+
+            try:
+                val_dict[f'x_mean'].append(x_mean)
+                val_dict[f'x_std'].append(x_std)
+                val_dict[f'y_mean'].append(y_mean)
+                val_dict[f'y_std'].append(y_std)
+            except KeyError:
+                val_dict[f'x_mean'] = [x_mean]
+                val_dict[f'x_std'] = [x_std]
+                val_dict[f'y_mean'] = [y_mean]
+                val_dict[f'y_std'] = [y_std]
+            x_prev = x
+        x_mean = val_dict[f'x_mean']
+        x_std = val_dict[f'x_std']
+        y_mean = val_dict[f'y_mean']
+        y_std = val_dict[f'y_std']
+        return x_mean, x_std, y_mean, y_std
+
+    @staticmethod
+    def print_latex_table_total_power(nshstats_df, ref_tpe_mean):
+        # rn_dict = {
+        #     'delta_cmd': 'delta_cmd',
+        #     'cmd_delta_rpm': 'cmd_drpm',
+        #     # 'm16_delta_rpm_mean': 'm16_drpm_mean',
+        #     # 'm25_delta_rpm_mean': 'm25_drpm_mean',
+        #     # 'm38_delta_rpm_mean': 'm38_drpm_mean',
+        #     # 'm47_delta_rpm_mean': 'm47_drpm_mean',
+        #     'mean_delta_rpm_mean': 'mean_drpm_mean',
+        #     'rmsd_delta_rpm': 'rmsd_drpm',
+        #     'net_delta_rpm_mean': 'net_drpm_mean',
+        #     'tot_pow_esc_mean': 'tpow_mean',
+        #     'tot_pow_esc_std': 'tpow_std',
+        #     'm38_pow_ars_mean': 'm38_pow_ars',
+        # }
+        for ind in nshstats_df.index:
+            delta_cmd = round(nshstats_df['delta_cmd'][ind], 2)
+            cmd_drpm = round(nshstats_df['cmd_delta_rpm'][ind], 2)
+            mdr_mean = round(nshstats_df['mean_delta_rpm_mean'][ind])
+            rdr_mean = round(nshstats_df['rmsd_delta_rpm'][ind])
+            tpe_mean = round(nshstats_df['tot_pow_esc_mean'][ind])
+            tpe_perc = round((tpe_mean - ref_tpe_mean) / ref_tpe_mean * 100, 1)
+            tpe_std = round(nshstats_df['tot_pow_esc_std'][ind])
+
+            # net_rpm = round(nshstats_df['net_delta_rpm_mean'][ind])
+            # mtr_mean = round(nshstats_df['mean_tot_rpm_mean'][ind])
+            # mtr_perc = round((mtr_mean - ref_mtr_mean)/ref_mtr_mean*100, 1)
+            # latex_perc = r'\%'
+            # print(f'{delta_cmd} & {tpe_mean} ({tpe_perc} {latex_perc}) & '
+            #       f'{tpe_std} & {mtr_mean} ({mtr_perc} {latex_perc}) ')
+
+            # ndk = nshstats_df['nsh_dict_keys'][ind]
+            #  {ndk}
+            latex_perc = r'\%'
+            print(f'{delta_cmd} & {cmd_drpm} & {mdr_mean} & {rdr_mean}'
+                  f' & {tpe_mean} ({tpe_perc} {latex_perc}) & {tpe_std}')
+
+        # firefly_log_54_ulg_log_109
+        # 0.0 & 1308 (-0.1 \%) & 58 & 17658 (-0.1 \%)
+        # 0.1 & 1336 (2.1 \%) & 21 & 17822 (0.8 \%)
+        # 0.2 & 1364 (4.2 \%) & 12 & 17959 (1.6 \%)
+        # 0.3 & 1386 (5.9 \%) & 22 & 18016 (1.9 \%)
+        # 0.4 & 1425 (8.9 \%) & 19 & 18120 (2.5 \%)
+        # 0.5 & 1448 (10.6 \%) & 16 & 18106 (2.4 \%)
+        # 0.4 & 1419 (8.4 \%) & 17 & 18090 (2.3 \%)
+        # 0.3 & 1386 (5.9 \%) & 15 & 18015 (1.9 \%)
+        # 0.2 & 1365 (4.3 \%) & 27 & 17964 (1.6 \%)
+        # 0.1 & 1346 (2.8 \%) & 21 & 17874 (1.1 \%)
+        # 0.0 & 1309 (0.0 \%) & 12 & 17680 (0.0 \%)
+        # -0.1 & 1304 (-0.4 \%) & 14 & 17560 (-0.7 \%)
+        # -0.2 & 1298 (-0.8 \%) & 22 & 17394 (-1.6 \%)
+        # -0.3 & 1286 (-1.8 \%) & 25 & 17163 (-2.9 \%)
+        # -0.4 & 1296 (-1.0 \%) & 32 & 17013 (-3.8 \%)
+        # -0.5 & 1295 (-1.1 \%) & 26 & 16759 (-5.2 \%)
+        # -0.4 & 1292 (-1.3 \%) & 24 & 17007 (-3.8 \%)
+        # -0.3 & 1279 (-2.3 \%) & 16 & 17152 (-3.0 \%)
+        # -0.2 & 1300 (-0.7 \%) & 18 & 17422 (-1.5 \%)
+        # -0.1 & 1305 (-0.3 \%) & 29 & 17563 (-0.7 \%)
 
 
 def find_file_in_folder(fpath, extension, log_num):

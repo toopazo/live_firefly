@@ -1,14 +1,14 @@
-import argparse
-import copy
+# import argparse
+# import copy
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 import os
 import pandas
 import numpy as np
 
-from toopazo_tools.file_folder import FileFolderTools as FFTools
-from firefly_parse_fu import FUParser, UlgParserTools as UlgPT
-from firefly_database import FileTagData
+# from toopazo_tools.file_folder import FileFolderTools as FFTools
+# from firefly_parse_fu import FUParser, UlgParserTools as UlgPT
+# from firefly_database import FileTagData
 from firefly_parse_keys import FireflyDfKeys, UlgDictKeys
 from firefly_parse_keys import ArmDfKeys, ArmDfKeysMi
 from firefly_parse_keys import UlgInDfKeys, UlgOutDfKeys, UlgPvDfKeys, \
@@ -32,7 +32,9 @@ class FUPlotState:
                 'Directories are not present or could not be created')
 
         self.bdir = bdir
-        self.figsize = (10, 6)
+        # w_inches = 6.5
+        w_inches = 10
+        self.figsize = (w_inches, w_inches / 2)
 
     def save_current_plot(self, file_tag, tag_arr, sep, ext):
         file_name = file_tag
@@ -42,7 +44,7 @@ class FUPlotState:
 
         # plt.show()
         print(f'Saving file {file_path} ..')
-        plt.savefig(file_path)
+        plt.savefig(file_path, bbox_inches='tight')
         plt.close(plt.gcf())
         # return file_path
 
@@ -64,9 +66,9 @@ class FUPlotState:
                     ax.set_ylim([ymin, ymax])
             i = i + 1
 
-    def ver1(self, firefly_df, arm_df, ulg_dict, file_tag, tag_arr):
+    def linvel(self, firefly_df, arm_df, ulg_dict, file_tag, tag_arr):
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=self.figsize)
-        fig.suptitle(f'{file_tag}')
+        # fig.suptitle(f'{file_tag}')
 
         _ = firefly_df, arm_df
 
@@ -104,9 +106,9 @@ class FUPlotState:
 
         self.save_current_plot(file_tag, tag_arr=tag_arr, sep="_", ext='.png')
 
-    def ver2(self, firefly_df, arm_df, ulg_dict, file_tag, tag_arr):
+    def angvel(self, firefly_df, arm_df, ulg_dict, file_tag, tag_arr):
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=self.figsize)
-        fig.suptitle(f'{file_tag}')
+        # fig.suptitle(f'{file_tag}')
 
         _ = firefly_df, arm_df
 
@@ -115,7 +117,7 @@ class FUPlotState:
 
         smooth = True
         if smooth:
-            fig.suptitle(f'{file_tag}: smoothed signals (savgol_filter)')
+            fig.suptitle('Smoothed signals (savgol_filter)')
             custom_ax1 = pandas.DataFrame(
                 index=ulg_angvel_df.index, data={'data': savgol_filter(
                     ulg_angvel_df[UlgAngvelDf.roll_rate].values, 21, 3)}
@@ -182,7 +184,7 @@ class FUPlotState:
         ax1t = ax1.twinx()
         ax1t.set_ylabel("Roll, deg", color='blue')
         val_mean = np.mean(roll_angle.values)
-        lbl = 'substracted mean %s $deg$' % round(val_mean, 2)
+        lbl = 'subtracted mean %s $deg$' % round(val_mean, 2)
         ax1t.plot(roll_angle - val_mean, color='blue', label=lbl, alpha=0.5)
         ax1t.axes.xaxis.set_ticklabels([])
         ax1t.legend(loc='lower left')
@@ -192,7 +194,7 @@ class FUPlotState:
         ax2t = ax2.twinx()
         ax2t.set_ylabel("Pitch, deg", color='blue')
         val_mean = np.mean(pitch_angle.values)
-        lbl = 'substracted mean %s $deg$' % round(val_mean, 2)
+        lbl = 'subtracted mean %s $deg$' % round(val_mean, 2)
         ax2t.plot(pitch_angle - val_mean, color='blue', label=lbl, alpha=0.5)
         ax2t.axes.xaxis.set_ticklabels([])
         ax2t.legend(loc='lower left')
@@ -201,7 +203,7 @@ class FUPlotState:
         ax3t = ax3.twinx()
         ax3t.set_ylabel("Yaw, deg", color='blue')
         val_mean = np.mean(yaw_angle.values)
-        lbl = 'substracted mean %s $deg$' % round(val_mean, 2)
+        lbl = 'subtracted mean %s $deg$' % round(val_mean, 2)
         ax3t.plot(yaw_angle - val_mean, color='blue', label=lbl, alpha=0.5)
         ax3t.axes.xaxis.set_ticklabels([])
         ax3t.legend(loc='lower left')
@@ -216,9 +218,9 @@ class FUPlotState:
         )
         return [ax1t, ax2t, ax3t]
 
-    def ver3(self, firefly_df, arm_df, ulg_dict, file_tag, tag_arr):
+    def accel(self, firefly_df, arm_df, ulg_dict, file_tag, tag_arr):
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=self.figsize)
-        fig.suptitle(f'{file_tag}')
+        # fig.suptitle(f'{file_tag}')
 
         _ = firefly_df, arm_df
 
@@ -226,7 +228,7 @@ class FUPlotState:
         # print(ulg_accel_df.keys())
         smooth = True
         if smooth:
-            fig.suptitle(f'{file_tag}:  Smoothed signals (savgol_filter)')
+            fig.suptitle('Smoothed signals (savgol_filter)')
             custom_ax1 = pandas.DataFrame(
                 index=ulg_accel_df.index, data={'data': savgol_filter(
                     ulg_accel_df[UlgAccelDf.ax].values, 21, 3)}
@@ -262,7 +264,7 @@ class FUPlotState:
         ax3.grid(True)
         ax3.set_ylabel('az, $m/s^2$')
         az_mean = np.mean(ulg_accel_df[UlgAccelDf.az].values)
-        lbl = 'substracted mean %s $m/s^2$' % round(az_mean, 2)
+        lbl = 'subtracted mean %s $m/s^2$' % round(az_mean, 2)
         ax3.plot(custom_ax3 - az_mean, label=lbl)
         ax3.axes.xaxis.set_ticklabels([])
         ax3.legend()
@@ -282,9 +284,9 @@ class FUPlotState:
 
         self.save_current_plot(file_tag, tag_arr=tag_arr, sep="_", ext='.png')
 
-    def ver4(self, firefly_df, arm_df, ulg_dict, file_tag, tag_arr):
+    def angacc(self, firefly_df, arm_df, ulg_dict, file_tag, tag_arr):
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=self.figsize)
-        fig.suptitle(f'{file_tag}')
+        # fig.suptitle(f'{file_tag}')
 
         _ = firefly_df, arm_df
 
@@ -293,7 +295,7 @@ class FUPlotState:
         # print(ulg_accel_df.keys())
         smooth = True
         if smooth:
-            fig.suptitle(f'{file_tag}: Smoothed signals (savgol_filter)')
+            fig.suptitle('Smoothed signals (savgol_filter)')
             custom_ax1 = pandas.DataFrame(
                 index=ulg_angacc_df.index, data={'data': savgol_filter(
                     ulg_angacc_df[UlgAngaccDf.p_rate].values, 21, 3)}

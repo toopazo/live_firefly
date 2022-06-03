@@ -37,12 +37,12 @@ class FireflyDfKeysMi:
 
         #      'fcost_fcost1', 'fcost_fcost2', 'fcost_fcost3', 'fcost_fcost4',
         #      'fcost_fcost5', 'fcost_fcost6', 'fcost_fcost7', 'fcost_fcost8',
-        #      'optim_nsh_delta', 'optim_avg_cost_m38',
+        #      'optim_nsh_cmd', 'optim_avg_cost_m38',
         #      'optim_avg_cost_m47', 'optim_avg_cost_tot',
         #      'optim_avg_cost_tot_prev']
 
         self.fcost = f'fcost_fcost{mi}'
-        # self.nsh_delta = 'optim_nsh_delta'
+        # self.nsh_cmd = 'optim_nsh_cmd'
         # self.fcost_avg_m38 = 'optim_avg_cost_m38'
         # self.fcost_avg_m47 = 'optim_avg_cost_m47'
         # self.fcost_avg_tot = 'optim_avg_cost_tot'
@@ -59,8 +59,7 @@ class FireflyDfKeys:
     m7 = FireflyDfKeysMi(7)
     m8 = FireflyDfKeysMi(8)
 
-    # nsh_delta_estim = 'nsh_delta_estim'
-    nsh_delta = 'optim_nsh_delta'
+    nsh_cmd = 'optim_nsh_cmd'
     fcost_avg_m38 = 'optim_avg_cost_m38'
     fcost_avg_m47 = 'optim_avg_cost_m47'
     fcost_avg_tot = 'optim_avg_cost_tot'

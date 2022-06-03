@@ -240,12 +240,12 @@ class EscOptimizer:
             escid = str(10 + i + 1)
             try:
                 # esc data
-                # cost = parsed_data[f'voltage_{escid}'] * parsed_data[
-                #     f'current_{escid}']
+                cost = parsed_data[f'voltage_{escid}'] * parsed_data[
+                    f'current_{escid}']
 
                 # ars data
-                cost = parsed_data[f'voltage_{escid}'] * parsed_data[
-                    f'cur_{escid}']
+                # cost = parsed_data[f'voltage_{escid}'] * parsed_data[
+                #     f'cur_{escid}']
             except KeyError:
                 cost = -1
             cost_arr.append(cost)
@@ -265,7 +265,7 @@ class EscOptimizer:
         fmavl_queue = queue.Queue()
         fmavl_thread = fmavl.start(fmavl_queue)
 
-        cmd_period = 10
+        cmd_period = 6
         # sampling_period = 0.3
         sampling_period = 0.1
         cost_m38_arr = []
@@ -299,17 +299,17 @@ class EscOptimizer:
                 cost_m47_arr.append(cost_m47)
 
                 # Low battery check
-                if cnt_samples >= int(num_samples/4):
+                if cnt_samples >= int(num_samples/2):
                     parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
                     m13_volage = parsed_data[f'voltage_13']
-                    min_voltage = 20
+                    min_voltage = (3.4*4)*2
                     if m13_volage <= min_voltage:
                         print(f'Warning, low battery {m13_volage} !!!!!!!!!!!')
 
                 # Processing of previous time window
                 if cnt_samples >= num_samples:
-                    avg_cost_m38 = np.average(cost_m38_arr)
-                    avg_cost_m47 = np.average(cost_m47_arr)
+                    avg_cost_m38 = np.average(cost_m38_arr) * 1.0
+                    avg_cost_m47 = np.average(cost_m47_arr) * 1.0
                     avg_cost_tot = avg_cost_m38 + avg_cost_m47*0
                     if optimizer_state == 0:
                         # In the last state 'nsh_delta' was going up
@@ -322,13 +322,15 @@ class EscOptimizer:
                         avg_cost_tot_down = avg_cost_tot
                         # Now it is time to decide where to go
                         avg_cost_tot_diff = avg_cost_tot_up - avg_cost_tot_down
-                        if avg_cost_tot_diff < 0:
+                        if avg_cost_tot_diff < 0.0:
                             nsh_delta = nsh_delta + max_abs_rate
-                        if avg_cost_tot_diff >= 0:
+                            print('next I should go up')
+                        if avg_cost_tot_diff >= 0.0:
                             nsh_delta = nsh_delta - max_abs_rate
+                            print('next I should go down')
                         # Get ready for next iteration
                         optimizer_state = 0
-                        nsh_delta = nsh_delta - max_abs_rate
+                        nsh_delta = nsh_delta + max_abs_rate
                     else:
                         raise RuntimeError('Bring the vehicle down')
 
@@ -344,7 +346,7 @@ class EscOptimizer:
                         print(f'{nsh_delta}={nsh_delta_prev}-{max_abs_rate}')
                         nsh_delta = nsh_delta_prev - max_abs_rate
                     # Max abs ranges
-                    max_abs_val = 0.8
+                    max_abs_val = 0.9
                     if nsh_delta >= +max_abs_val:
                         nsh_delta = +max_abs_val
                     if nsh_delta <= -max_abs_val:
