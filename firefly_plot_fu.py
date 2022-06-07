@@ -80,19 +80,31 @@ class FUPlot:
         arm_df = FUParser.get_arm_df(firefly_df)
 
         ####################################################################
+        # 1
         self.fup_motor.cur_vs_time(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 2
         self.fup_motor.cur_calibration(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 3
         self.fup_hover.norm_vs_time(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
 
+        # font warning
         self.fup_hover.ver_thr(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 5
         self.fup_hover.ver_rpm(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 6
         self.fup_hover.ver_cur(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 7
         self.fup_power.estim_nsh_cmd(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
         ####################################################################
@@ -119,10 +131,13 @@ class FUPlot:
         # firefly_df = FUParser.smooth_current(firefly_df)
 
         ####################################################################
+        # 8
         self.fup_motor.cur_vs_time(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+        # 9
         self.fup_motor.cur_calibration(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+        # 10
         self.fup_hover.norm_vs_time(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
 
@@ -135,58 +150,98 @@ class FUPlot:
         # self.fup_state.angacc(
         #     firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
 
+        # 11
         self.fup_mixer.ca_in(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 12
         self.fup_mixer.ca_out(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 13
         self.fup_mixer.rpm_vs_thr(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 14
         self.fup_motor.rpm_vs_time(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 15
         self.fup_motor.cur_vs_time(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
         # self.fup_motor.delta_eta_rpm(
         #     firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
         # self.fup_motor.delta_eta_cur(
         #     firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
 
+        # 16
         self.fup_hover.thr_stats(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 17
         self.fup_hover.rpm_stats(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 18
         self.fup_hover.cur_stats(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 19
         self.fup_hover.vol_stats(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 20
         self.fup_hover.delta_rpm_mean(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 21
         self.fup_hover.delta_rpm_std(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
 
+        # 22
         self.fup_power.pow_stats(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 23
         self.fup_power.pow_residuals(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
         # self.fup_power.pow_vs_delta_rpm(
         #     firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
         # self.fup_power.pow_vs_eta_rpm(
         #     firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 24
         self.fup_power.pow_vs_time(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 25
         self.fup_power.pow_vs_rpm(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
         # self.fup_power.pow_vs_nshstats(
         #     firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 26
         self.fup_power.algorithm(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 27
         self.fup_power.totpow_vs_nshstats(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 28
         self.fup_power.pow_mean(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 29
         self.fup_power.pow_std(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 30
         self.fup_power.pow_hist(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
+
+        # 31
         self.fup_power.totpow_vs_time(
             firefly_df, arm_df, ulg_dict, file_tag, [self.incr_img_cnt()])
         ####################################################################
