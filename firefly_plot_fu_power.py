@@ -1090,7 +1090,7 @@ class FUPlotPower:
         nshstats_df = nshstats_df.append(
             lower_df, verify_integrity=True, ignore_index=True)
 
-        print(nshstats_df)
+        #print(nshstats_df)
 
         # https://plotly.com/python-api-reference/generated/
         # plotly.express.parallel_coordinates.html
@@ -1248,11 +1248,11 @@ class FUPlotPower:
         }
         df = nshstats_df.rename(columns=rn_dict)
         mlist = [rn_dict[k] for k in rn_dict.keys()]
-        print(df[mlist])
+        #print(df[mlist])
 
         [nsh_key_ref, cmd_ref, ref_tpe_mean, nsh_dict_keys] = \
             FileTagData.data_for_pow_hist(file_tag)
-        FUParser.print_latex_table_total_power(nshstats_df, ref_tpe_mean)
+        #FUParser.print_latex_table_total_power(nshstats_df, ref_tpe_mean)
 
         nsh_dict = FUParser.calculate_nsh_dict(
             firefly_df, arm_df, ulg_dict, file_tag, False)
