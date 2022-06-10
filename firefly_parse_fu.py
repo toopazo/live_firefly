@@ -24,17 +24,6 @@ class FUParser:
     Class to get data from log
     """
 
-    # file_extension = 'firefly'
-    # col_time = 'time s'
-    # col_escid = 'escid'
-    # col_voltage = 'voltage V'
-    # col_current = 'current A'
-    # col_rpm = 'angVel rpm'
-    # col_temp = 'temp degC'
-    # col_warn = 'warning'
-    # col_inthtl = 'inthtl us'
-    # col_outthtl = 'outthtl perc'
-
     def __init__(self, bdir, firefly_file, ulg_file):
         self.logdir = bdir + '/logs'
         self.tmpdir = bdir + '/tmp'
@@ -61,6 +50,8 @@ class FUParser:
         else:
             self.ulg_file = ulg_file
             UlgParser.check_ulog2csv(self.tmpdir, self.ulg_file)
+
+            ## this dict stores position and velocity data
             self.ulg_dict = UlgParser.get_ulg_dict(self.tmpdir, ulg_file)
 
             # Keep special dataframes separated
@@ -69,17 +60,6 @@ class FUParser:
             # Redefine ulg_dict leaving out slowly sampled dataframes
             del self.ulg_dict['ulg_sticks_df']
             del self.ulg_dict['ulg_switches_df']
-            # self.ulg_dict = {
-            #     'ulg_pv_df': self.ulg_dict['ulg_pv_df'],
-            #     'ulg_att_df': self.ulg_dict['ulg_att_df'],
-            #     'ulg_attsp_df': self.ulg_dict['ulg_attsp_df'],
-            #     'ulg_angvel_df': self.ulg_dict['ulg_angvel_df'],
-            #     'ulg_angvelsp_df': self.ulg_dict['ulg_angvelsp_df'],
-            #     # 'ulg_sticks_df': self.ulg_dict['ulg_sticks_df'],
-            #     # 'ulg_switches_df': self.ulg_dict['ulg_switches_df'],
-            #     'ulg_in_df': self.ulg_dict['ulg_in_df'],
-            #     'ulg_out_df': self.ulg_dict['ulg_out_df'],
-            # }
 
     @staticmethod
     def parse_line_escid(line, escid):
@@ -197,20 +177,6 @@ class FUParser:
             optim_dict = FUParser.parse_line_optim(line)
             for key in optim_dict.keys():
                 line_dict[f'optim_{key}'] = optim_dict[key]
-
-            # line_dict = {
-            #     'ars': FUParser.parse_line_ars(line),
-            #     'esc11': FUParser.parse_line_escid(line, escid=11),
-            #     'esc12': FUParser.parse_line_escid(line, escid=12),
-            #     'esc13': FUParser.parse_line_escid(line, escid=13),
-            #     'esc14': FUParser.parse_line_escid(line, escid=14),
-            #     'esc15': FUParser.parse_line_escid(line, escid=15),
-            #     'esc16': FUParser.parse_line_escid(line, escid=16),
-            #     'esc17': FUParser.parse_line_escid(line, escid=17),
-            #     'esc18': FUParser.parse_line_escid(line, escid=18),
-            #     'fcost': FUParser.parse_line_fcost(line),
-            #     'optim': FUParser.parse_line_optim(line),
-            # }
 
             # pprint(line_dict)
             return line_dict
@@ -796,7 +762,7 @@ class FUParser:
         arm_df[ArmDfKeys.m38.delta_cur] = m38_delta_cur.values
         arm_df[ArmDfKeys.m47.delta_cur] = m47_delta_cur.values
 
-        # Rates for (thr, rpm, cur)
+        # Rates for (thr, rpm, cur) -> d(Throttle)/dt
         m1_rate_thr = np.insert(
             np.diff(ff_df[ff_key_m1.thr].values), obj=0, values=0)
         m2_rate_thr = np.insert(
@@ -822,6 +788,7 @@ class FUParser:
         arm_df[ArmDfKeys.m7.rate_thr] = m7_rate_thr
         arm_df[ArmDfKeys.m8.rate_thr] = m8_rate_thr
 
+        # delta RPM -> d(RPM)/dt
         m1_rate_rpm = np.insert(
             np.diff(ff_df[ff_key_m1.rpm].values), obj=0, values=0)
         m2_rate_rpm = np.insert(
@@ -847,6 +814,7 @@ class FUParser:
         arm_df[ArmDfKeys.m7.rate_rpm] = m7_rate_rpm
         arm_df[ArmDfKeys.m8.rate_rpm] = m8_rate_rpm
 
+        # -> d(current)/dt
         m1_rate_cur = np.insert(
             np.diff(ff_df[ff_key_m1.cur].values), obj=0, values=0)
         m2_rate_cur = np.insert(
