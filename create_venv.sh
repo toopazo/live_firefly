@@ -7,6 +7,9 @@ sudo apt install python3 -y
 sudo apt install python3-pip -y
 sudo apt install python3-venv -y
 python -m ensurepip --upgrade
+#python -m pip install --upgrade pip
+#python -m pip install --upgrade setuptools wheel
+#python -m pip install --upgrade twine
 
 # 2) Create virtualenv
 python3 -m venv venv
@@ -22,23 +25,19 @@ source venv/bin/activate
 sudo apt-get install can-utils
 
 # 6) Install python libraries
-#python -m pip install --upgrade pip
-#python -m pip install --upgrade setuptools wheel
-#python -m pip install --upgrade twine
+python -m ensurepip --upgrade
 python -m pip install scipy
 python -m pip install pyserial
 python -m pip install mavsdk
 python -m pip install aioconsole
-python -m pip install pymavlink
 python -m pip install can-utils
 python -m pip install python-can
 python -m pip install net-tools
 python -m pip install pyqt5
 python -m pip install pandas
 python -m pip install matplotlib
-
-# For some reason I need to run this twice
-python -m pip install pymavlink
+#python -m pip install pymavlink
+#python -m pip install pymavlink # For some reason I need to run this twice
 
 python -m pip install git+https://github.com/toopazo/toopazo_tools.git
 python -m pip install git+https://github.com/toopazo/toopazo_ulg.git
