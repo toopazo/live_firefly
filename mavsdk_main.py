@@ -1,5 +1,12 @@
 from mavsdk import System
 
-drone = System()
-await drone.connect()
+
+def test_mavsdk():
+    drone = System()
+    await drone.connect()
+
+
+if __name__ == '__main__':
+    test_mavsdk()
+
 
