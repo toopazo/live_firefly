@@ -47,7 +47,13 @@ def get_power(firefly_df):
                   '38': (individual_power['13'] + individual_power['18']),
                   '47': (individual_power['14'] + individual_power['17'])}
 
-    return individual_power, pair_power
+    upper_power = {'11': individual_power['11'], '12': individual_power['12'],
+                   '13': individual_power['13'], '14': individual_power['14']}
+
+    lower_power = {'15': individual_power['15'], '16': individual_power['16'],
+                   '17': individual_power['17'], '18': individual_power['18']}
+
+    return individual_power, pair_power, upper_power, lower_power
 
 
 def get_in_throttle(firefly_df):
