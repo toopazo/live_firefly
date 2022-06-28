@@ -26,22 +26,22 @@ sudo apt-get install can-utils
 
 # 6) Install python libraries
 python -m ensurepip --upgrade
-python -m pip install scipy
 python -m pip install pyserial
-python -m pip install mavsdk
-python -m pip install aioconsole
 python -m pip install can-utils
 python -m pip install python-can
 python -m pip install net-tools
-python -m pip install pyqt5
+python -m pip install scipy
 python -m pip install pandas
 python -m pip install matplotlib
+python -m pip install mavsdk
+#python -m pip install aioconsole
+#python -m pip install pyqt5
 #python -m pip install pymavlink
 #python -m pip install pymavlink # For some reason I need to run this twice
 
 python -m pip install git+https://github.com/toopazo/toopazo_tools.git
 python -m pip install git+https://github.com/toopazo/toopazo_ulg.git
 python -m pip install git+https://github.com/toopazo/live_esc.git
-python -m pip install git+https://github.com/toopazo/live_ars.git
+#python -m pip install git+https://github.com/toopazo/live_ars.git
 
 
