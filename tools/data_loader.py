@@ -32,6 +32,18 @@ def get_rpm(firefly_df):
     return rpm
 
 
+def get_delta_rpm(firefly_df, smooth=5):
+
+    rpm = get_rpm(firefly_df)
+
+    delta_rpm = {'16': moving_average(rpm['11'], smooth) - moving_average(rpm['16'], smooth),
+                 '25': moving_average(rpm['12'], smooth) - moving_average(rpm['15'], smooth),
+                 '38': moving_average(rpm['13'], smooth) - moving_average(rpm['18'], smooth),
+                 '47': moving_average(rpm['14'], smooth) - moving_average(rpm['17'], smooth),
+                 }
+    return delta_rpm
+
+
 def get_power(firefly_df):
 
     current = get_current(firefly_df)
