@@ -7,7 +7,8 @@ class MavFirefly:
     @staticmethod
     async def initialize_drone():
         drone = System()
-        await drone.connect(system_address="serial:///dev/ttyACM0")
+        # await drone.connect(system_address="serial:///dev/ttyACM0")
+        await drone.connect(system_address="serial:///dev/ttyUSB0:921600")
 
         print("Waiting for drone to connect...")
         async for state in drone.core.connection_state():
@@ -23,6 +24,18 @@ class MavFirefly:
 
         # async for flight_mode in drone.telemetry.flight_mode():
         #     print("FlightMode:", flight_mode)
+
+        try:
+            data = await drone.info.get_flight_information()
+            print("get_flight_information:", data)
+        except mavsdk.info.InfoError as error:
+            print(f'mavsdk.info.InfoError {error}')
+
+        try:
+            data = await drone.info.get_identification()
+            print("get_identification:", data)
+        except mavsdk.info.InfoError as error:
+            print(f'mavsdk.info.InfoError {error}')
 
         data = drone.telemetry.actuator_control_target()
         print("actuator_control_target:", data)
@@ -48,17 +61,25 @@ class MavFirefly:
         print("armed:", data)
 
         try:
-            print(f"-- Arming drone")
+            print(f"-- Calling drone.action.arm()")
             data = await drone.action.arm()
             print("data:", data)
         except mavsdk.action.ActionError as error:
-            print(f'mavsdk.action.ActionError {error}')
+            print(f'error {error}')
 
         try:
-            info = await drone.info.get_flight_information()
-            print("info:", info)
+            print(f"-- Calling drone.info.get_flight_information()")
+            data = await drone.info.get_flight_information()
+            print("data:", data)
         except mavsdk.info.InfoError as error:
-            print(f'mavsdk.info.InfoError {error}')
+            print(f'error {error}')
+
+        try:
+            print(f"-- Calling drone.telemetry.set_rate_velocity_ned(10)")
+            data = await drone.telemetry.set_rate_velocity_ned(10)
+            print("data:", data)
+        except mavsdk.telemetry.TelemetryError as error:
+            print(f'error {error}')
 
         # Start the tasks
         print(f"-- Starting tasks")
@@ -67,10 +88,13 @@ class MavFirefly:
         # asyncio.ensure_future(MavFirefly.print_in_air(drone))
         # asyncio.ensure_future(MavFirefly.print_position(drone))
         # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.position_velocity_ned))
-        # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.armed))
-        asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.attitude_euler))
-        asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.attitude_angular_velocity_body))
         # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.velocity_ned))
+        # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.odometry))
+        # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.armed))
+        # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.attitude_euler))
+        # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.attitude_angular_velocity_body))
+        asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.actuator_output_status))
+        # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.actuator_control_target))
 
         # info = await drone.info.get_version()
         # print(info)
@@ -80,18 +104,6 @@ class MavFirefly:
 
         # info = await drone.telemetry.EulerAngle()
         # print("info:", info)
-
-        # try:
-        #     info = await drone.info.get_flight_information()
-        #     print("info:", info)
-        # except mavsdk.info.InfoError as error:
-        #     print(f'mavsdk.info.InfoError {error}')
-
-        # try:
-        #     info = await drone.info.Identification()
-        #     print("info:", info)
-        # except mavsdk.info.InfoError as error:
-        #     print(f'mavsdk.info.InfoError {error}')
 
         # info = Info(drone)
         # finfo = await drone.info.get_flight_information()
