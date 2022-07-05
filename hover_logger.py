@@ -2,6 +2,9 @@ from mavsdk import System
 import mavsdk
 import asyncio
 
+import os
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -52,20 +55,26 @@ class MavFirefly:
         """ Save 1000 data points to file """
 
         print("Start logging!")
-        log_points = 1000
-        min_seq_length = 20
-        max_seq_length = 100
-        data_array = np.zeros((max_seq_length, 7))
+
+        log_points = 2000
+        min_seq_length = 60
+        max_seq_length = 300
+
+        data_array = np.zeros((3, max_seq_length, 7))
         v_norm_array = np.zeros(log_points)
 
         u_array = np.zeros(log_points)
         v_array = np.zeros(log_points)
         w_array = np.zeros(log_points)
 
-        limit = 0.07
+        # calculate boundaries for vnorm
+        v_i = 14.3452  # calculated induced velocity of vehicle
 
-        no_seq = 0
-        seq_length = 0
+        limit = np.array([0.005, 0.01, 0.015]) * v_i
+        limit_text = ['0.5', '1.0', '1.5']
+        seq_counter = np.zeros(3, dtype=int)
+        seq_length = np.zeros(3, dtype=int)
+
         counter = 0
 
         start_time = time.time()
@@ -87,31 +96,34 @@ class MavFirefly:
             z = data.position_body.x_m
 
             vnorm = np.sqrt(u ** 2 + v ** 2 + w ** 2)
+
             v_norm_array[counter] = vnorm
             u_array[counter] = u
             v_array[counter] = v
             w_array[counter] = w
 
-            if vnorm < limit and seq_length < 50:
-                data_array[seq_length, :] = np.array([t, x, y, z, u, v, w])
-                seq_length += 1
+            for i in range(3):
+                if vnorm < limit[i] and seq_length[i] < max_seq_length-1:
+                    data_array[i, seq_length[i], :] = np.array([t, x, y, z, u, v, w])
+                    seq_length[i] += 1
 
-            else:
-                if seq_length >= min_seq_length:
+                else:
+                    if seq_length[i] >= min_seq_length:
+                        seq_start = counter - seq_length[i]
+                        seq_end = counter
+                        np.savetxt(f'./logs/limit_{limit_text[i]}/sequence_{seq_start}_{seq_end}.csv',
+                                   data_array[i, :seq_length[0], :], delimiter=',', header='t, x, y, z, u, v, w')
+                        seq_counter[i] += 1
 
-                    np.savetxt(f'./logs/logged_data{no_seq}.csv', data_array[:seq_length, :],
-                               delimiter=',', header='t, x, y, z, u, v, w')
-                    no_seq += 1
-
-                seq_length = 0
-                data_array = np.zeros((100, 7))
+                    seq_length[i] = 0
+                    data_array[i, :, :] = 0
 
             counter += 1
 
             if counter == log_points:
                 fig, ax = plt.subplots()
                 ax.plot(v_norm_array, label='vnorm')
-
+                print(max(v_norm_array))
                 ax.plot(u_array, label='u')
                 ax.plot(v_array, label='v')
                 ax.plot(w_array, label='w')
@@ -120,17 +132,33 @@ class MavFirefly:
                 ax.legend()
                 plt.show()
                 break
-                
+
 
 if __name__ == '__main__':
 
     asyncio.ensure_future(MavFirefly.initialize_drone())
 
-    start = time.time()
+    # create logging folder
+    current_path = os.getcwd()
+    log_path = current_path + '/logs'
+
+    # create logs folder
+    if not os.path.exists(log_path):
+        os.mkdir('logs')
+
+    # create sub-folders for all limits
+    if not os.path.isdir(log_path + '/limit_0.5'):
+        os.mkdir('logs/limit_0.5')
+
+    if not os.path.isdir(log_path + '/limit_1.0'):
+        os.mkdir('logs/limit_1.0')
+
+    if not os.path.isdir(log_path + '/limit_1.5'):
+        os.mkdir('logs/limit_1.5')
 
     # Runs the event loop until the program is canceled with e.g. CTRL-C
     loop = asyncio.get_event_loop()
     loop.run_forever()
     print("Stop")
-    end = time.time()
-    print(f'Ended after {end-start} seconds')
+    #end = time.time()
+    #print(f'Ended after {end-start} seconds')
