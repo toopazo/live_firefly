@@ -10,11 +10,24 @@ import matplotlib.pyplot as plt
 
 import time
 
+from esc_module import SensorIfaceWrapper, EscOptimizer
+
 limit_text = ['0.5', '1.0', '1.5', '2', '5', '10']
+
 
 class MavFirefly:
 
     stop_logging = False
+
+    # set global counter variable to create log saving folder
+    log_number = 0
+
+    try:
+        sensor_iface = SensorIfaceWrapper(ars_port='/dev/ttyACM0')
+        esc_data_avail = True
+    except OSError:
+        print("Could not connect to ESC!")
+        esc_data_avail = False
 
     @staticmethod
     async def initialize_drone():
@@ -75,11 +88,11 @@ class MavFirefly:
 
         n_bins = len(limit_text)
 
-        log_points = 2000
+        log_points = 500
         min_seq_length = 60
         max_seq_length = 300
 
-        data_array = np.zeros((n_bins, max_seq_length, 7))
+        data_array = np.zeros((n_bins, max_seq_length, 7+16))
         v_norm_array = np.zeros(log_points)
 
         u_array = np.zeros(log_points)
@@ -89,8 +102,7 @@ class MavFirefly:
         # calculate boundaries for vnorm
         v_i = 14.3452  # calculated induced velocity of vehicle
 
-        #limit = np.array([0.005, 0.01, 0.015]) * v_i
-        limit = np.array([float(a) for a in limit_text])
+        limit = np.array([float(a)*v_i*0.01 for a in limit_text])
         seq_counter = np.zeros(n_bins, dtype=int)
         seq_length = np.zeros(n_bins, dtype=int)
 
@@ -125,17 +137,29 @@ class MavFirefly:
             v_array[counter] = v
             w_array[counter] = w
 
+            if MavFirefly.esc_data_avail:
+                sensor_data = MavFirefly.sensor_iface.get_data()
+                parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
+
             for i in range(n_bins):
                 if vnorm < limit[i] and seq_length[i] < max_seq_length-1:
-                    data_array[i, seq_length[i], :] = np.array([t, x, y, z, u, v, w])
+                    data_array[i, seq_length[i], :7] = np.array([t, x, y, z, u, v, w])
+
+                    if MavFirefly.esc_data_avail:
+                        for j in range(8):
+                            data_array[i, seq_length[i], j+7] = parsed_data[f'voltage_{11+j}']
+                            data_array[i, seq_length[i], j+15] = parsed_data[f'current_{11+j}']
+
                     seq_length[i] += 1
 
                 else:
                     if seq_length[i] >= min_seq_length:
                         seq_start = counter - seq_length[i]
                         seq_end = counter
-                        np.savetxt(f'./logs/hover_{limit_text[i]}ms_limit/sequence_{seq_start}_{seq_end}.csv',
-                                   data_array[i, :seq_length[0], :], delimiter=',', header='t, x, y, z, u, v, w')
+                        np.savetxt(f'./flight_{MavFirefly.log_number}/hover_{limit_text[i]}ms_limit/sequence_{seq_start}_{seq_end}.csv',
+                                   data_array[i, :seq_length[0], :], delimiter=',',
+                                   header='t, x, y, z, u, v, w, U11, U12, U13, U14, U15, U16, U17, U18, \
+                                          I11, I12, I13, I14, I15, I16, I17, I18')
                         seq_counter[i] += 1
 
                     seq_length[i] = 0
@@ -163,17 +187,20 @@ if __name__ == '__main__':
 
     # create logging folder
     current_path = os.getcwd()
-    log_path = current_path + '/logs'
+    log_path = current_path + f'/flight_{MavFirefly.log_number}'
 
     # create logs folder
-    if not os.path.exists(log_path):
-        os.mkdir('logs')
+    while os.path.exists(log_path):
+        MavFirefly.log_number += 1
+        log_path = current_path + f'/flight_{MavFirefly.log_number}'
+
+    os.mkdir(f'./flight_{MavFirefly.log_number}')
 
     # create sub-folders for all limits
 
     for limit in limit_text:
         if not os.path.isdir(log_path + f'/hover_{limit}ms_limit'):
-            os.mkdir(f'logs/hover_{limit}ms_limit')
+            os.mkdir(f'{log_path}/hover_{limit}ms_limit')
 
     # Runs the event loop until the program is canceled with e.g. CTRL-C
     loop = asyncio.get_event_loop()
