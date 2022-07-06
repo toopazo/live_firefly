@@ -10,8 +10,11 @@ import matplotlib.pyplot as plt
 
 import time
 
+limit_text = ['0.5', '1.0', '1.5', '2', '5', '10']
 
 class MavFirefly:
+
+    stop_logging = False
 
     @staticmethod
     async def initialize_drone():
@@ -45,10 +48,24 @@ class MavFirefly:
         # Start the tasks
         print(f"-- Starting tasks")
 
+        try:
+            print("Try to set forward speed")
+            await drone.action.set_current_speed(5)
+        except mavsdk.action.ActionError as error:
+            print(f'mavsdk.info.InfoError {error}')
+
         await MavFirefly.log_hovering(drone.telemetry.odometry)
         loop.stop()
 
         return drone
+
+    @staticmethod
+    async def set_logging():
+        MavFirefly.stop_logging = True
+
+    @staticmethod
+    async def get_logging():
+        return MavFirefly.stop_logging
 
     @staticmethod
     async def log_hovering(method):
@@ -56,11 +73,13 @@ class MavFirefly:
 
         print("Start logging!")
 
+        n_bins = len(limit_text)
+
         log_points = 2000
         min_seq_length = 60
         max_seq_length = 300
 
-        data_array = np.zeros((3, max_seq_length, 7))
+        data_array = np.zeros((n_bins, max_seq_length, 7))
         v_norm_array = np.zeros(log_points)
 
         u_array = np.zeros(log_points)
@@ -70,10 +89,10 @@ class MavFirefly:
         # calculate boundaries for vnorm
         v_i = 14.3452  # calculated induced velocity of vehicle
 
-        limit = np.array([0.005, 0.01, 0.015]) * v_i
-        limit_text = ['0.5', '1.0', '1.5']
-        seq_counter = np.zeros(3, dtype=int)
-        seq_length = np.zeros(3, dtype=int)
+        #limit = np.array([0.005, 0.01, 0.015]) * v_i
+        limit = np.array([float(a) for a in limit_text])
+        seq_counter = np.zeros(n_bins, dtype=int)
+        seq_length = np.zeros(n_bins, dtype=int)
 
         counter = 0
 
@@ -85,6 +104,10 @@ class MavFirefly:
                 logged_time = time.time()
                 print(f'Processed {counter} data points in {logged_time - start_time} seconds')
                 start_time = logged_time
+
+            # check for interrupt flag
+            if await MavFirefly.get_logging():
+                break
 
             t = data.time_usec
             u = data.velocity_body.x_m_s
@@ -102,7 +125,7 @@ class MavFirefly:
             v_array[counter] = v
             w_array[counter] = w
 
-            for i in range(3):
+            for i in range(n_bins):
                 if vnorm < limit[i] and seq_length[i] < max_seq_length-1:
                     data_array[i, seq_length[i], :] = np.array([t, x, y, z, u, v, w])
                     seq_length[i] += 1
@@ -111,7 +134,7 @@ class MavFirefly:
                     if seq_length[i] >= min_seq_length:
                         seq_start = counter - seq_length[i]
                         seq_end = counter
-                        np.savetxt(f'./logs/limit_{limit_text[i]}/sequence_{seq_start}_{seq_end}.csv',
+                        np.savetxt(f'./logs/hover_{limit_text[i]}ms_limit/sequence_{seq_start}_{seq_end}.csv',
                                    data_array[i, :seq_length[0], :], delimiter=',', header='t, x, y, z, u, v, w')
                         seq_counter[i] += 1
 
@@ -147,14 +170,10 @@ if __name__ == '__main__':
         os.mkdir('logs')
 
     # create sub-folders for all limits
-    if not os.path.isdir(log_path + '/limit_0.5'):
-        os.mkdir('logs/limit_0.5')
 
-    if not os.path.isdir(log_path + '/limit_1.0'):
-        os.mkdir('logs/limit_1.0')
-
-    if not os.path.isdir(log_path + '/limit_1.5'):
-        os.mkdir('logs/limit_1.5')
+    for limit in limit_text:
+        if not os.path.isdir(log_path + f'/hover_{limit}ms_limit'):
+            os.mkdir(f'logs/hover_{limit}ms_limit')
 
     # Runs the event loop until the program is canceled with e.g. CTRL-C
     loop = asyncio.get_event_loop()
@@ -162,3 +181,7 @@ if __name__ == '__main__':
     print("Stop")
     #end = time.time()
     #print(f'Ended after {end-start} seconds')
+
+    # try to break program with a suitable flag
+
+    # try to access esc motor data
