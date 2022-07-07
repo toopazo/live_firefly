@@ -45,12 +45,12 @@ class MavFirefly:
             if health.is_accelerometer_calibration_ok:
                 print(f"-- is_accelerometer_calibration_ok {health.is_accelerometer_calibration_ok}")
                 break
-        try:
-            print(f"-- Arming drone")
-            data = await drone.action.arm()
-            print("data:", data)
-        except mavsdk.action.ActionError as error:
-            print(f'mavsdk.action.ActionError {error}')
+        #try:
+            #print(f"-- Arming drone")
+            #data = await drone.action.arm()
+            #print("data:", data)
+        #except mavsdk.action.ActionError as error:
+            #print(f'mavsdk.action.ActionError {error}')
 
         try:
             info = await drone.info.get_flight_information()
@@ -88,16 +88,16 @@ class MavFirefly:
 
         n_bins = len(limit_text)
 
-        log_points = 500
-        min_seq_length = 60
+        log_points = 100000
+        min_seq_length = 15
         max_seq_length = 300
 
         data_array = np.zeros((n_bins, max_seq_length, 7+16))
-        v_norm_array = np.zeros(log_points)
+        v_norm_array = np.zeros(100)
 
-        u_array = np.zeros(log_points)
-        v_array = np.zeros(log_points)
-        w_array = np.zeros(log_points)
+        #u_array = np.zeros(log_points)
+        #v_array = np.zeros(log_points)
+        #w_array = np.zeros(log_points)
 
         # calculate boundaries for vnorm
         v_i = 14.3452  # calculated induced velocity of vehicle
@@ -114,7 +114,8 @@ class MavFirefly:
 
             if counter % 100 == 0:
                 logged_time = time.time()
-                print(f'Processed {counter} data points in {logged_time - start_time} seconds')
+                v_av = np.sum(v_norm_array)/100
+                print(f'Logged {counter} data points in {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
                 start_time = logged_time
 
             # check for interrupt flag
@@ -132,18 +133,24 @@ class MavFirefly:
 
             vnorm = np.sqrt(u ** 2 + v ** 2 + w ** 2)
 
-            v_norm_array[counter] = vnorm
-            u_array[counter] = u
-            v_array[counter] = v
-            w_array[counter] = w
+            v_norm_array[counter%100] = vnorm
+            #u_array[counter] = u
+            #v_array[counter] = v
+            #w_array[counter] = w
 
             if MavFirefly.esc_data_avail:
                 sensor_data = MavFirefly.sensor_iface.get_data()
                 parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
 
+            if counter%200 == 0:
+                print(sensor_data)
+
             for i in range(n_bins):
                 if vnorm < limit[i] and seq_length[i] < max_seq_length-1:
                     data_array[i, seq_length[i], :7] = np.array([t, x, y, z, u, v, w])
+                    
+                    #print(" ")
+                    #print(parsed_data)
 
                     if MavFirefly.esc_data_avail:
                         for j in range(8):
@@ -153,6 +160,7 @@ class MavFirefly:
                     seq_length[i] += 1
 
                 else:
+                    #print("Write")
                     if seq_length[i] >= min_seq_length:
                         seq_start = counter - seq_length[i]
                         seq_end = counter
@@ -167,18 +175,18 @@ class MavFirefly:
 
             counter += 1
 
-            if counter == log_points:
-                fig, ax = plt.subplots()
-                ax.plot(v_norm_array, label='vnorm')
-                print(max(v_norm_array))
-                ax.plot(u_array, label='u')
-                ax.plot(v_array, label='v')
-                ax.plot(w_array, label='w')
+            #if counter == log_points:
+            #    fig, ax = plt.subplots()
+            #    ax.plot(v_norm_array, label='vnorm')
+            #    print(max(v_norm_array))
+            #    ax.plot(u_array, label='u')
+            #    ax.plot(v_array, label='v')
+            #    ax.plot(w_array, label='w')
 
-                ax.grid()
-                ax.legend()
-                plt.show()
-                break
+            #    ax.grid()
+            #    ax.legend()
+            #    plt.show()
+            #    break
 
 
 if __name__ == '__main__':

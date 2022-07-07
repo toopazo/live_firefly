@@ -1,5 +1,5 @@
 from live_esc.kde_uas85uvc.kdecan_interface import KdeCanIface
-from live_ars.ars_interface import ArsIface
+#from live_ars.ars_interface import ArsIface
 
 
 class EscIfaceWrapper:
@@ -10,6 +10,9 @@ class EscIfaceWrapper:
     def get_data(self):
         # get data
         resp_arr = self.esc.get_data_esc_arr(self.esc_arr)
+
+        #for arr in self.esc_arr:
+        #    print(resp_arr)
 
         # for each targetid, get data
         log_data_final = ""
@@ -34,16 +37,16 @@ class EscIfaceWrapper:
         self.esc.kdecan_bus.shutdown()
 
 
-class ArsIfaceWrapper:
-    def __init__(self, port):
-        self.ars = ArsIface(port)
+#class ArsIfaceWrapper:
+#    def __init__(self, port):
+#        self.ars = ArsIface(port)
 
-    def get_data(self):
-        log_data = self.ars.safely_read_data()
-        return log_data
+#    def get_data(self):
+#        log_data = self.ars.safely_read_data()
+#        return log_data
 
-    def close(self):
-        self.ars.serial_thread_close()
+#    def close(self):
+#        self.ars.serial_thread_close()
 
 
 class SensorIfaceWrapper:
@@ -184,7 +187,7 @@ class EscOptimizer:
 
         num_rotors = 8
         for i in range(0, num_rotors):
-            indx = 20 + 9 * i
+            indx = 9 * i
             escid = str(10 + i + 1)
             # print(f'indx {indx} escid {escid}')
 
