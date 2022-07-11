@@ -18,9 +18,27 @@ stop_flag = False
 
 async def set_stop_flag():
     global stop_flag
-    print("Stop flag will be set in 20 seconds!")
-    await asyncio.sleep(20)
+    timeout = 10
+    print(f"Stop flag will be set in {timeout} seconds!")
+
+    await asyncio.sleep(timeout)
     stop_flag = True
+    return 2
+
+
+async def check_stop():
+    global stop_flag
+    counter = 0
+    while True:
+        #armed = await PixhawkConnection.check_armed_state()
+
+        if counter < 10:
+            print(f"Counter is {counter}")
+            await asyncio.sleep(2)
+            counter += 1
+        else:
+            stop_flag = True
+            #return 1
 
 
 def create_flight_folder():
@@ -51,16 +69,19 @@ class PixhawkConnection:
 
         try:
             print("Trying to connect to pixhawk...")
-            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyUSB0:921600"), timeout=5)
+            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyUSB0:921600"), timeout=3)
 
         except asyncio.TimeoutError:
             print("ERROR: Connection to pixhawk failed!")
-            return False
+            return 0
 
         async for state in cls.pixhawk.core.connection_state():
+
             if state.is_connected:
                 print(f"-- Connected to pixhawk!")
                 break
+            else:
+                return 0
 
         # try to connect to the ESCs
         try:
@@ -71,10 +92,18 @@ class PixhawkConnection:
             print("-- ESC data available --> NO")
             cls.esc_data_avail = False
 
-        # create folder to save the flight data
-        create_flight_folder()
+        return 1
 
-        return True
+    @classmethod
+    async def check_armed_state(cls):
+
+        async for armed_state in cls.pixhawk.telemetry.armed():
+
+            if armed_state:
+                print(f"-- Vehicle armed -> start logging")
+                break
+            else:
+                return 0
 
     @classmethod
     async def log_hovering(cls):
@@ -113,7 +142,9 @@ class PixhawkConnection:
 
             # check for interrupt flag
             if stop_flag:
-                del cls.pixhawk
+                #del cls.pixhawk
+                stop_flag = False
+                return 1
                 break
 
             t = data.time_usec
@@ -159,23 +190,54 @@ class PixhawkConnection:
                     data_array[i, :, :] = 0
 
             counter += 1
-            end = time.time()
 
 
 async def control_loop():
-    init = await PixhawkConnection.initialize_drone()
+    # implements finite state machine to control data logging process, depending on whether vehicle is armed or not
 
-    if init:
-        hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
-        stop_task = asyncio.create_task(set_stop_flag())
-        await hover_task
-        await stop_task
+    state = 0  # init state
 
+    while True:
+
+        if state == 0:
+            # try to connect to Pixhawk
+            connected = await PixhawkConnection.initialize_drone()
+
+            if connected:
+                state = 1
+            else:
+                await asyncio.sleep(5)
+
+        if state == 1:
+            # check if vehicle is armed
+            armed = await PixhawkConnection.check_armed_state()
+            armed = 1 # comment out to use real armed flag
+            if armed:
+                state = 2
+            else:
+                await asyncio.sleep(5)
+
+        if state == 2:
+
+            create_flight_folder() # create folder to save the flight data
+            hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
+            stop_task = asyncio.create_task(set_stop_flag())
+            state = 3
+
+        if state == 3:
+            state = await hover_task
+
+        #TODO: CHECK STOP FUNCTION
+        #TODO: USE REAL ARMED FLAG
 
 if __name__ == '__main__':
 
     print("Data logger has been started!")
-    asyncio.run(control_loop())
+    try:
+        asyncio.run(control_loop())
+    except KeyboardInterrupt:
+        print("Stopped Program")
+        del PixhawkConnection.pixhawk
 
     print("Finished data logging!")
     sys.exit()
