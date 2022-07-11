@@ -27,18 +27,18 @@ async def set_stop_flag():
 
 
 async def check_stop():
-    global stop_flag
-    counter = 0
-    while True:
-        #armed = await PixhawkConnection.check_armed_state()
 
-        if counter < 10:
-            print(f"Counter is {counter}")
-            await asyncio.sleep(2)
-            counter += 1
+    global stop_flag
+    #counter = 0
+    while True:
+        armed = await PixhawkConnection.check_armed_state()
+
+        if armed:
+            await asyncio.sleep(3)
+            continue
         else:
             stop_flag = True
-            #return 1
+            break
 
 
 def create_flight_folder():
@@ -100,8 +100,7 @@ class PixhawkConnection:
         async for armed_state in cls.pixhawk.telemetry.armed():
 
             if armed_state:
-                print(f"-- Vehicle armed -> start logging")
-                break
+                return 1
             else:
                 return 0
 
@@ -115,7 +114,7 @@ class PixhawkConnection:
 
         log_points = 100000
         min_seq_length = 15
-        max_seq_length = 300
+        max_seq_length = 500
 
         data_array = np.zeros((n_bins, max_seq_length, 7+16))
         v_norm_array = np.zeros(100)
@@ -161,7 +160,7 @@ class PixhawkConnection:
             v_norm_array[counter%100] = vnorm
 
             if PixhawkConnection.esc_data_avail:
-                sensor_data = PixhawkConnection.sensor_iface.get_data()
+                sensor_data = PixhawkConnection.esc_interface.get_data()
                 parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
 
             for i in range(n_bins):
@@ -200,6 +199,7 @@ async def control_loop():
     while True:
 
         if state == 0:
+            print("State 0")
             # try to connect to Pixhawk
             connected = await PixhawkConnection.initialize_drone()
 
@@ -209,22 +209,27 @@ async def control_loop():
                 await asyncio.sleep(5)
 
         if state == 1:
+            print("State 1")
             # check if vehicle is armed
             armed = await PixhawkConnection.check_armed_state()
-            armed = 1 # comment out to use real armed flag
+            #armed = 1 # comment out to use real armed flag
             if armed:
+                print(f"-- Vehicle armed -> start logging")
                 state = 2
             else:
+                print("Vehicle not armed -> waiting for armed state")
                 await asyncio.sleep(5)
 
         if state == 2:
+            print("State 2")
 
             create_flight_folder() # create folder to save the flight data
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
-            stop_task = asyncio.create_task(set_stop_flag())
+            stop_task = asyncio.create_task(check_stop()) # comment in for real flight
             state = 3
 
         if state == 3:
+            print("State 3")
             state = await hover_task
 
         #TODO: CHECK STOP FUNCTION
