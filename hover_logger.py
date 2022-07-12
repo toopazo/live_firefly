@@ -19,7 +19,7 @@ stop_flag = False
 
 async def set_stop_flag():
     global stop_flag
-    timeout = 10
+    timeout = 20
     print(f"Stop flag will be set in {timeout} seconds!")
 
     await asyncio.sleep(timeout)
@@ -134,20 +134,14 @@ class PixhawkConnection:
         start_time = time.time()
         # here starts the loop which reads the data
         async for data in cls.pixhawk.telemetry.odometry():
-            begin = time.time()
 
             if counter % 100 == 0:
                 logged_time = time.time()
                 v_av = np.sum(v_norm_array)/100
-                print(f'Logged {counter} data points in {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
-                start_time = logged_time
+                print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
+                #start_time = logged_time
 
-            # check for interrupt flag
-            if stop_flag:
-                #del cls.pixhawk
-                stop_flag = False
-                return 1
-                break
+
 
             t = data.time_usec
             u = data.velocity_body.x_m_s
@@ -171,7 +165,7 @@ class PixhawkConnection:
                     PixhawkConnection.esc_data_avail = False
 
             for i in range(n_bins):
-                if vnorm < limit[i] and seq_length[i] < max_seq_length-1:
+                if vnorm < limit[i] and seq_length[i] < max_seq_length-1 and not stop_flag:
                     data_array[i, seq_length[i], :7] = np.array([t, x, y, z, u, v, w])
 
                     if PixhawkConnection.esc_data_avail:
@@ -192,18 +186,24 @@ class PixhawkConnection:
                         #dataframe = pd.DataFrame(motor_data, columns=['x,y,z,u,v,w'])
                         np.savetxt(f'./flight_{log_number}/hover_{vel_limits[i]}_limit/sequence_{seq_counter[i]}_{seq_start}_{seq_end}.csv',
                                    data_array[i, :seq_length[i], :], delimiter=',', comments='',
-                                   header='t,x,y,z,u,v,w, \
-                                           U11,U12,U13,U14,U15,U16,U17,U18, \
-                                           I11,I12,I13,I14,I15,I16,I17,I18, \
-                                           omega1, omega2, omega3, omega4, omega5, omega6, omega7, omega8, \
-                                           thr_in1, thr_in2, thr_in3, thr_in4, thr_in5, thr_in6, thr_in7, thr_in8, \
-                                           thr_out1, thr_out2, thr_out3, thr_out4, thr_out5, thr_out6, thr_out7, thr_out8')
+                                   header='t,x,y,z,u,v,w,'
+                                          'U11,U12,U13,U14,U15,U16,U17,U18,'
+                                          'I11,I12,I13,I14,I15,I16,I17,I18,'
+                                          'omega1, omega2, omega3, omega4, omega5, omega6, omega7, omega8,'
+                                          'thr_in1, thr_in2, thr_in3, thr_in4, thr_in5, thr_in6, thr_in7, thr_in8,'
+                                          'thr_out1, thr_out2, thr_out3, thr_out4, thr_out5, thr_out6, thr_out7, thr_out8')
 
                         seq_counter[i] += 1
 
                     seq_length[i] = 0
-                    #odometry_data[i, :, :] = 0
                     data_array[i, :, :] = 0
+
+            # check for interrupt flag
+            if stop_flag:
+                # del cls.pixhawk
+                stop_flag = False
+                return 1
+                break
 
             counter += 1
 
@@ -243,14 +243,12 @@ async def control_loop():
             create_flight_folder() # create folder to save the flight data
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
             #stop_task = asyncio.create_task(check_stop()) # comment in for real flight
+            stop_task = asyncio.create_task(set_stop_flag()) # comment in for real flight
             state = 3
 
         if state == 3:
             print("State 3")
             state = await hover_task
-
-        #TODO: CHECK STOP FUNCTION
-        #TODO: USE REAL ARMED FLAG
 
 if __name__ == '__main__':
 
