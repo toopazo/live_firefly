@@ -4,6 +4,7 @@ import time
 import asyncio
 
 import numpy as np
+import pandas as pd
 
 from mavsdk import System
 
@@ -116,7 +117,9 @@ class PixhawkConnection:
         min_seq_length = 15
         max_seq_length = 500
 
-        data_array = np.zeros((n_bins, max_seq_length, 7+16))
+        #odometry_data = np.zeros((n_bins, max_seq_length, 7))
+        #motor_data = np.zeros((n_bins, max_seq_length, 40))
+        data_array = np.zeros((n_bins, max_seq_length, 47))
         v_norm_array = np.zeros(100)
 
         # calculate boundaries for vnorm
@@ -160,17 +163,24 @@ class PixhawkConnection:
             v_norm_array[counter%100] = vnorm
 
             if PixhawkConnection.esc_data_avail:
-                sensor_data = PixhawkConnection.esc_interface.get_data()
-                parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
+                try:
+                    sensor_data = PixhawkConnection.esc_interface.get_data()
+                    parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
+                except TypeError:
+                    print("Could not retrieve ESC data! Check if ESCs are powered!")
+                    PixhawkConnection.esc_data_avail = False
 
             for i in range(n_bins):
                 if vnorm < limit[i] and seq_length[i] < max_seq_length-1:
                     data_array[i, seq_length[i], :7] = np.array([t, x, y, z, u, v, w])
 
                     if PixhawkConnection.esc_data_avail:
-                        for j in range(8):
-                            data_array[i, seq_length[i], j+7] = parsed_data[f'voltage_{11+j}']
-                            data_array[i, seq_length[i], j+15] = parsed_data[f'current_{11+j}']
+                        for j in range(7, 15):
+                            data_array[i, seq_length[i], j] = parsed_data[f'voltage_{4+j}']
+                            data_array[i, seq_length[i], j + 8] = parsed_data[f'current_{4+j}']
+                            data_array[i, seq_length[i], j + 16] = parsed_data[f'angVel_{4+j}']
+                            data_array[i, seq_length[i], j + 24] = parsed_data[f'inthtl_{4 + j}']
+                            data_array[i, seq_length[i], j + 32] = parsed_data[f'outthtl_{4 + j}']
 
                     seq_length[i] += 1
 
@@ -179,13 +189,20 @@ class PixhawkConnection:
                     if seq_length[i] >= min_seq_length:
                         seq_start = counter - seq_length[i]
                         seq_end = counter
+                        #dataframe = pd.DataFrame(motor_data, columns=['x,y,z,u,v,w'])
                         np.savetxt(f'./flight_{log_number}/hover_{vel_limits[i]}_limit/sequence_{seq_counter[i]}_{seq_start}_{seq_end}.csv',
                                    data_array[i, :seq_length[i], :], delimiter=',', comments='',
-                                   header='t,x,y,z,u,v,w,U11,U12,U13,U14,U15,U16,U17,U18, \
-                                          I11,I12,I13,I14,I15,I16,I17,I18')
+                                   header='t,x,y,z,u,v,w, \
+                                           U11,U12,U13,U14,U15,U16,U17,U18, \
+                                           I11,I12,I13,I14,I15,I16,I17,I18, \
+                                           omega1, omega2, omega3, omega4, omega5, omega6, omega7, omega8, \
+                                           thr_in1, thr_in2, thr_in3, thr_in4, thr_in5, thr_in6, thr_in7, thr_in8, \
+                                           thr_out1, thr_out2, thr_out3, thr_out4, thr_out5, thr_out6, thr_out7, thr_out8')
+
                         seq_counter[i] += 1
 
                     seq_length[i] = 0
+                    #odometry_data[i, :, :] = 0
                     data_array[i, :, :] = 0
 
             counter += 1
@@ -212,7 +229,7 @@ async def control_loop():
             print("State 1")
             # check if vehicle is armed
             armed = await PixhawkConnection.check_armed_state()
-            #armed = 1 # comment out to use real armed flag
+            armed = 1 # comment out to use real armed flag
             if armed:
                 print(f"-- Vehicle armed -> start logging")
                 state = 2
@@ -225,7 +242,7 @@ async def control_loop():
 
             create_flight_folder() # create folder to save the flight data
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
-            stop_task = asyncio.create_task(check_stop()) # comment in for real flight
+            #stop_task = asyncio.create_task(check_stop()) # comment in for real flight
             state = 3
 
         if state == 3:
@@ -239,10 +256,12 @@ if __name__ == '__main__':
 
     print("Data logger has been started!")
     try:
-        asyncio.run(control_loop())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(control_loop())
     except KeyboardInterrupt:
-        print("Stopped Program")
+        print("Stopped Program with Keyboard Interrupt")
         del PixhawkConnection.pixhawk
+        loop.stop()
 
     print("Finished data logging!")
     sys.exit()

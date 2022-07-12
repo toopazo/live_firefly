@@ -107,37 +107,37 @@ class EscOptimizer:
                 val = e.strip()
             parsed_data_arr.append(val)
 
-        parsed_data_dict = {
-            'sps': parsed_data_arr[0],
-            'mills': parsed_data_arr[1],
-            'secs': parsed_data_arr[2],
-            'dtmills': parsed_data_arr[3],
-            'rpm1': parsed_data_arr[4],
-            'rpm2': parsed_data_arr[5],
-            'rpm3': parsed_data_arr[6],
-            'rpm4': parsed_data_arr[7],
-            'rpm5': parsed_data_arr[8],
-            'rpm6': parsed_data_arr[9],
-            'rpm7': parsed_data_arr[10],
-            'rpm8': parsed_data_arr[11],
-            'cur1': parsed_data_arr[12],
-            'cur2': parsed_data_arr[13],
-            'cur3': parsed_data_arr[14],
-            'cur4': parsed_data_arr[15],
-            'cur5': parsed_data_arr[16],
-            'cur6': parsed_data_arr[17],
-            'cur7': parsed_data_arr[18],
-            'cur8': parsed_data_arr[19],
-            # adding reordered data
-            'rpm_13': parsed_data_arr[4],  # rmp1
-            'rpm_18': parsed_data_arr[5],  # rmp2
-            'rpm_14': parsed_data_arr[6],  # rmp3
-            'rpm_17': parsed_data_arr[7],  # rmp4
-            'cur_13': parsed_data_arr[12],  # cur1
-            'cur_18': parsed_data_arr[13],  # cur2
-            'cur_14': parsed_data_arr[14],  # cur3
-            'cur_17': parsed_data_arr[15],  # cur4
-        }
+        parsed_data_dict = {}
+        #     'sps': parsed_data_arr[0],
+        #     'mills': parsed_data_arr[1],
+        #     'secs': parsed_data_arr[2],
+        #     'dtmills': parsed_data_arr[3],
+        #     'rpm1': parsed_data_arr[4],
+        #     'rpm2': parsed_data_arr[5],
+        #     'rpm3': parsed_data_arr[6],
+        #     'rpm4': parsed_data_arr[7],
+        #     'rpm5': parsed_data_arr[8],
+        #     'rpm6': parsed_data_arr[9],
+        #     'rpm7': parsed_data_arr[10],
+        #     'rpm8': parsed_data_arr[11],
+        #     'cur1': parsed_data_arr[12],
+        #     'cur2': parsed_data_arr[13],
+        #     'cur3': parsed_data_arr[14],
+        #     'cur4': parsed_data_arr[15],
+        #     'cur5': parsed_data_arr[16],
+        #     'cur6': parsed_data_arr[17],
+        #     'cur7': parsed_data_arr[18],
+        #     'cur8': parsed_data_arr[19],
+        #     # adding reordered data
+        #     'rpm_13': parsed_data_arr[4],  # rmp1
+        #     'rpm_18': parsed_data_arr[5],  # rmp2
+        #     'rpm_14': parsed_data_arr[6],  # rmp3
+        #     'rpm_17': parsed_data_arr[7],  # rmp4
+        #     'cur_13': parsed_data_arr[12],  # cur1
+        #     'cur_18': parsed_data_arr[13],  # cur2
+        #     'cur_14': parsed_data_arr[14],  # cur3
+        #     'cur_17': parsed_data_arr[15],  # cur4
+        # }
         # Dec9 19:39
 
         # pwm test -c 1 -p 1000
