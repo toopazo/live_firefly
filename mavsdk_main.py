@@ -7,8 +7,8 @@ class MavFirefly:
     @staticmethod
     async def initialize_drone():
         drone = System()
-        # await drone.connect(system_address="serial:///dev/ttyACM0")
-        await drone.connect(system_address="serial:///dev/ttyUSB0:921600")
+        await drone.connect(system_address="serial:///dev/ttyACM0:921600")
+        # await drone.connect(system_address="serial:///dev/ttyUSB1:921600")
 
         print("Waiting for drone to connect...")
         async for state in drone.core.connection_state():
@@ -81,6 +81,8 @@ class MavFirefly:
         except mavsdk.telemetry.TelemetryError as error:
             print(f'error {error}')
 
+        # drone.shell.Shell()
+
         # Start the tasks
         print(f"-- Starting tasks")
         # asyncio.ensure_future(MavFirefly.print_battery(drone))
@@ -89,7 +91,7 @@ class MavFirefly:
         # asyncio.ensure_future(MavFirefly.print_position(drone))
         # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.position_velocity_ned))
         # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.velocity_ned))
-        # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.odometry))
+        asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.odometry))
         # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.armed))
         # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.attitude_euler))
         # asyncio.ensure_future(MavFirefly.print_generic(drone, drone.telemetry.attitude_angular_velocity_body))

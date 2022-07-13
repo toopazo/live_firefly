@@ -1802,7 +1802,7 @@ if __name__ == '__main__':
                         help='Base directory of [logs, tmp, plots] folders')
     parser.add_argument('--ulg', action='store', required=True,
                         help='Specific log file number to process')
-    parser.add_argument('--firefly', action='store', required=True,
+    parser.add_argument('--firefly', action='store', required=False,
                         help='Specific log file number to process')
 
     args = parser.parse_args()
@@ -1818,6 +1818,14 @@ if __name__ == '__main__':
 
         f_parser = FUParser(abs_bdir, abs_firefly_file, abs_ulg_file)
         exit(0)
+    else:
+        mlogdir = abs_bdir + '/logs'
+        mtmpdir = abs_bdir + '/tmp'
+        mplotdir = abs_bdir + '/plots'
+        mulg_file = args.ulg
+        UlgParser.check_ulog2csv(mtmpdir, mulg_file)
+        ulg_dict = UlgParser.get_ulg_dict(mtmpdir, mulg_file)
+        print(ulg_dict)
 
     print('Error parsing user arguments')
     print(f'firefly file: {args.firefly}')

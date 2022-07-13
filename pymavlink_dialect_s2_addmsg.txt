@@ -1,0 +1,36 @@
+
+The custom mavlink messages FIREFLY_DELTA and FIREFLY_CTRLALLOC need to be added
+to live_firefly/mavlink/message_definitions/v1.0/development.xml as it is shown below:
+
+    <message id="436" name="CURRENT_MODE">
+      <description>Get the current mode.
+        This should be emitted on any mode change, and broadcast at low rate (nominally 0.5 Hz).
+        It may be requested using MAV_CMD_REQUEST_MESSAGE.
+      </description>
+      <field type="uint8_t" name="standard_mode" enum="MAV_STANDARD_MODE">Standard mode.</field>
+      <field type="uint8_t" name="base_mode" enum="MAV_MODE_FLAG" display="bitmask">System mode bitmap.</field>
+      <field type="uint32_t" name="custom_mode">A bitfield for use for autopilot-specific flags</field>
+    </message>
+    <!-- toopazo -->
+    <message id="9123" name="FIREFLY_DELTA">
+      <description>Get the current delta rpm command.
+        Custom message to read the current delta rpm command for firefly control allocation (coaxial rotors).
+      </description>
+        <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+        <field type="uint32_t" name="status" units="">Status.</field>
+        <field type="uint32_t" name="noutputs" units="">Number of outputs.</field>
+        <field type="float[8]" name="delta" units="">Delta command for coaxial pair / arm</field>
+      </message>
+      <message id="9124" name="FIREFLY_CTRLALLOC">
+        <description>Get the current state of the controll allocation unit.
+          Custom message to read the current state of the firefly control allocation unit (coaxial rotors).
+        </description>
+        <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+        <field type="uint32_t" name="status" units="">Status.</field>
+        <field type="uint32_t" name="noutputs" units="">Number of outputs.</field>
+        <field type="float[8]" name="controls" units="">Input into the control allocation unit</field>
+        <field type="float[8]" name="output" units="">Output from the control allocation unit</field>
+        <field type="float[8]" name="pwm_limited" units="">Filtered output from the control allocation unit</field>
+        <field type="float[8]" name="delta" units="">Delta command for coaxial pair / arm</field>
+    </message>
+    <!-- toopazo -->
