@@ -1,7 +1,7 @@
 
 source venv/bin/activate
 
-sudo rm -r mavlink
+rm -rf mavlink
 
 #rm -r pymavlink
 #wget https://github.com/ArduPilot/pymavlink/archive/refs/tags/2.4.30.zip
@@ -22,4 +22,3 @@ git clone --depth 1 https://github.com/mavlink/mavlink.git --recursive
 rm -r -f mavlink/.git*
 rm -r -f mavlink/pymavlink/.git*
 
-cd ..
