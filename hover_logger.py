@@ -70,7 +70,8 @@ class PixhawkConnection:
 
         try:
             print("Trying to connect to pixhawk...")
-            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyUSB0:921600"), timeout=3)
+            #await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyACM0:921600"), timeout=3)
+            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyPX4:921600"), timeout=3)
 
         except asyncio.TimeoutError:
             print("ERROR: Connection to pixhawk failed!")
@@ -86,7 +87,7 @@ class PixhawkConnection:
 
         # try to connect to the ESCs
         try:
-            cls.esc_interface = SensorIfaceWrapper(ars_port='/dev/ttyACM0')
+            cls.esc_interface = SensorIfaceWrapper() # port does not matter
             cls.esc_data_avail = True
             print("-- ESC data available --> YES")
         except OSError:
@@ -160,6 +161,10 @@ class PixhawkConnection:
                 try:
                     sensor_data = PixhawkConnection.esc_interface.get_data()
                     parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
+
+                    if counter % 100 == 0:
+                        print(parsed_data)
+
                 except TypeError:
                     print("Could not retrieve ESC data! Check if ESCs are powered!")
                     PixhawkConnection.esc_data_avail = False

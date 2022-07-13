@@ -50,7 +50,7 @@ class EscIfaceWrapper:
 
 
 class SensorIfaceWrapper:
-    def __init__(self, ars_port):
+    def __init__(self):
         #self.ars = ArsIfaceWrapper(ars_port)
         self.esc = EscIfaceWrapper()
         # self.ctrlalloc = CtrlAllocIface(ctrlalloc_port)
