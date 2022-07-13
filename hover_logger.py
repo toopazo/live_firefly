@@ -10,6 +10,8 @@ from mavsdk import System
 
 from esc_module import SensorIfaceWrapper, EscOptimizer
 
+from pymavlink import mavutil
+
 vel_limits = ['0.5', '1.0', '1.5', '2', '5', '10']
 
 # set global counter variable to create log saving folder
@@ -63,27 +65,26 @@ def create_flight_folder():
 
 class PixhawkConnection:
     esc_interface = None
-    pixhawk = System()
+    #pixhawk = System()
+    pixhawk = mavutil.mavlink_connection(device="/dev/ttyACM0", baud="921600", dialect='development')
 
     @classmethod
     async def initialize_drone(cls):
 
-        try:
-            print("Trying to connect to pixhawk...")
-            #await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyACM0:921600"), timeout=3)
-            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyPX4:921600"), timeout=3)
+        cls.pixhawk.wait_heartbeat()
+            #if state.is_connected:
+        print(f"-- Connected to pixhawk!")
 
-        except asyncio.TimeoutError:
-            print("ERROR: Connection to pixhawk failed!")
+        msg = cls.pixhawk.recv_match(type='SYS_STATUS', blocking=True)
+        if not msg:
+            print('Could not get heartbeat message!')
             return 0
-
-        async for state in cls.pixhawk.core.connection_state():
-
-            if state.is_connected:
-                print(f"-- Connected to pixhawk!")
-                break
-            else:
-                return 0
+        if msg.get_type() == "BAD_DATA":
+            if mavutil.all_printable(msg.data):
+                sys.stdout.write(msg.data)
+                sys.stdout.flush()
+        else:
+            pass
 
         # try to connect to the ESCs
         try:
@@ -134,24 +135,26 @@ class PixhawkConnection:
 
         start_time = time.time()
         # here starts the loop which reads the data
-        async for data in cls.pixhawk.telemetry.odometry():
+        #async for data in cls.pixhawk.telemetry.odometry():
 
+        while True:
+
+            odometry = cls.pixhawk.recv_match(type='ODOMETRY', blocking=True)
+            #timesync = cls.pixhawk.recv_match(type='TIMESYNC', blocking=True)
             if counter % 100 == 0:
                 logged_time = time.time()
                 v_av = np.sum(v_norm_array)/100
                 print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
-                #start_time = logged_time
+                start_time = logged_time
 
+            t = odometry.time_usec
+            u = odometry.vx
+            v = odometry.vy
+            w = odometry.vz
 
-
-            t = data.time_usec
-            u = data.velocity_body.x_m_s
-            v = data.velocity_body.y_m_s
-            w = data.velocity_body.z_m_s
-
-            x = data.position_body.x_m
-            y = data.position_body.x_m
-            z = data.position_body.x_m
+            x = odometry.x
+            y = odometry.y
+            z = odometry.z
 
             vnorm = np.sqrt(u ** 2 + v ** 2 + w ** 2)
 
@@ -226,21 +229,21 @@ async def control_loop():
             connected = await PixhawkConnection.initialize_drone()
 
             if connected:
-                state = 1
+                state = 2
             else:
                 await asyncio.sleep(5)
 
         if state == 1:
             print("State 1")
             # check if vehicle is armed
-            armed = await PixhawkConnection.check_armed_state()
+            #armed = await PixhawkConnection.check_armed_state()
             armed = 1 # comment out to use real armed flag
-            if armed:
-                print(f"-- Vehicle armed -> start logging")
-                state = 2
-            else:
-                print("Vehicle not armed -> waiting for armed state")
-                await asyncio.sleep(5)
+            #if armed:
+            #    print(f"-- Vehicle armed -> start logging")
+            #    state = 2
+            #else:
+            #    print("Vehicle not armed -> waiting for armed state")
+            #    await asyncio.sleep(5)
 
         if state == 2:
             print("State 2")
@@ -248,7 +251,7 @@ async def control_loop():
             create_flight_folder() # create folder to save the flight data
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
             #stop_task = asyncio.create_task(check_stop()) # comment in for real flight
-            stop_task = asyncio.create_task(set_stop_flag()) # comment in for real flight
+            #stop_task = asyncio.create_task(set_stop_flag()) # comment in for real flight
             state = 3
 
         if state == 3:
@@ -258,6 +261,7 @@ async def control_loop():
 if __name__ == '__main__':
 
     print("Data logger has been started!")
+    mavutil.set_dialect('development')
     try:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(control_loop())
