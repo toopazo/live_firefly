@@ -71,7 +71,7 @@ class PixhawkConnection:
         try:
             print("Trying to connect to pixhawk...")
             #await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyACM0:921600"), timeout=3)
-            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyPX4:921600"), timeout=3)
+            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyUSB0:921600"), timeout=3)
 
         except asyncio.TimeoutError:
             print("ERROR: Connection to pixhawk failed!")
@@ -162,8 +162,8 @@ class PixhawkConnection:
                     sensor_data = PixhawkConnection.esc_interface.get_data()
                     parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
 
-                    if counter % 100 == 0:
-                        print(parsed_data)
+                    #if counter % 100 == 0:
+                    #    print(parsed_data)
 
                 except TypeError:
                     print("Could not retrieve ESC data! Check if ESCs are powered!")
@@ -234,7 +234,7 @@ async def control_loop():
             print("State 1")
             # check if vehicle is armed
             armed = await PixhawkConnection.check_armed_state()
-            armed = 1 # comment out to use real armed flag
+            #armed = 1 # comment out to use real armed flag
             if armed:
                 print(f"-- Vehicle armed -> start logging")
                 state = 2
@@ -248,7 +248,7 @@ async def control_loop():
             create_flight_folder() # create folder to save the flight data
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
             #stop_task = asyncio.create_task(check_stop()) # comment in for real flight
-            stop_task = asyncio.create_task(set_stop_flag()) # comment in for real flight
+            #stop_task = asyncio.create_task(set_stop_flag()) # comment in for real flight
             state = 3
 
         if state == 3:
