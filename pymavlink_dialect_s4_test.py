@@ -81,3 +81,6 @@ if __name__ == '__main__':
 
     # mavlink stream -d /dev/ttyS1 -s FIREFLY_CTRLALLOC -r 30
     # mavlink stream -d /dev/ttyS1 -s POSITION_TARGET_LOCAL_NED -r 30
+
+    # mavlink start -d /dev/ttyACM0 -b 2000000 -r 800000 -x
+    # mavlink start -d /dev/ttyS2 -b 115200 -r 2000 -x
