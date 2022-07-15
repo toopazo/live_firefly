@@ -150,8 +150,8 @@ class PixhawkConnection:
             w = data.velocity_body.z_m_s
 
             x = data.position_body.x_m
-            y = data.position_body.x_m
-            z = data.position_body.x_m
+            y = data.position_body.y_m
+            z = data.position_body.z_m
 
             vnorm = np.sqrt(u ** 2 + v ** 2 + w ** 2)
 
