@@ -10,6 +10,8 @@ from mavsdk import System
 
 from esc_module import SensorIfaceWrapper, EscOptimizer
 
+from pymavlink import mavutil
+
 vel_limits = ['0.5', '1.0', '1.5', '2', '5', '10']
 
 # set global counter variable to create log saving folder
@@ -63,27 +65,26 @@ def create_flight_folder():
 
 class PixhawkConnection:
     esc_interface = None
-    pixhawk = System()
+    #pixhawk = System()
+    pixhawk = mavutil.mavlink_connection(device="/dev/ttyACM0", baud="921600", dialect='development')
 
     @classmethod
     async def initialize_drone(cls):
 
-        try:
-            print("Trying to connect to pixhawk...")
-            #await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyACM0:921600"), timeout=3)
-            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyUSB0:921600"), timeout=3)
+        cls.pixhawk.wait_heartbeat()
+            #if state.is_connected:
+        print(f"-- Connected to pixhawk!")
 
-        except asyncio.TimeoutError:
-            print("ERROR: Connection to pixhawk failed!")
+        msg = cls.pixhawk.recv_match(type='SYS_STATUS', blocking=True)
+        if not msg:
+            print('Could not get heartbeat message!')
             return 0
-
-        async for state in cls.pixhawk.core.connection_state():
-
-            if state.is_connected:
-                print(f"-- Connected to pixhawk!")
-                break
-            else:
-                return 0
+        if msg.get_type() == "BAD_DATA":
+            if mavutil.all_printable(msg.data):
+                sys.stdout.write(msg.data)
+                sys.stdout.flush()
+        else:
+            pass
 
         # try to connect to the ESCs
         try:
@@ -116,11 +117,12 @@ class PixhawkConnection:
 
         log_points = 100000
         min_seq_length = 15
-        max_seq_length = 500
+        max_seq_length = 300
 
         #odometry_data = np.zeros((n_bins, max_seq_length, 7))
         #motor_data = np.zeros((n_bins, max_seq_length, 40))
-        data_array = np.zeros((n_bins, max_seq_length, 47))
+        # data_array = np.zeros((n_bins, max_seq_length, 47)
+        data_array = np.zeros((n_bins, max_seq_length, 47+35))
         v_norm_array = np.zeros(100)
 
         # calculate boundaries for vnorm
@@ -134,36 +136,59 @@ class PixhawkConnection:
 
         start_time = time.time()
         # here starts the loop which reads the data
-        async for data in cls.pixhawk.telemetry.odometry():
+        #async for data in cls.pixhawk.telemetry.odometry():
 
+        while True:
+
+            odometry = cls.pixhawk.recv_match(type='ODOMETRY', blocking=True)
+            # timesync = cls.pixhawk.recv_match(type='TIMESYNC', blocking=True)
+
+            """ Faked controll allocation"""
+            # ctrl_alloc = cls.pixhawk.recv_match(type='FIREFLY_CTRLALLOC', blocking=True)
+            ctrl_alloc = {'time_boot_ms': 99770, 'status': 1, 'nooutputs': 8,
+                          'controls': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+                          'output': [-1, -1, -1, -1, -1, -1, -1, -1],
+                          'pwm_limited': [900, 901, 902, 903, 904, 905, 906, 907, 908],
+                          'delta': [0, 1, 2, 3, 4, 5, 6, 7]}
+
+            # Control message for logging process
             if counter % 100 == 0:
                 logged_time = time.time()
                 v_av = np.sum(v_norm_array)/100
                 print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
-                #start_time = logged_time
+                start_time = logged_time
+
+            t = odometry.time_usec
+            u = odometry.vx
+            v = odometry.vy
+            w = odometry.vz
+
+            x = odometry.x
+            y = odometry.y
+            z = odometry.z
+
+            # variables for control allocation
+            t_ctrl = ctrl_alloc['time_boot_ms']
+            ctrl_status = ctrl_alloc['status']
+            n_out = ctrl_alloc['nooutputs']
+            controls = ctrl_alloc['controls']
+            ctrl_output = ctrl_alloc['output']
+            pwm_limit = ctrl_alloc['pwm_limited']
+            delta = ctrl_alloc['delta']
 
 
-
-            t = data.time_usec
-            u = data.velocity_body.x_m_s
-            v = data.velocity_body.y_m_s
-            w = data.velocity_body.z_m_s
-
-            x = data.position_body.x_m
-            y = data.position_body.y_m
-            z = data.position_body.z_m
 
             vnorm = np.sqrt(u ** 2 + v ** 2 + w ** 2)
 
-            v_norm_array[counter%100] = vnorm
+            v_norm_array[counter % 100] = vnorm
 
             if PixhawkConnection.esc_data_avail:
                 try:
                     sensor_data = PixhawkConnection.esc_interface.get_data()
                     parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
 
-                    #if counter % 100 == 0:
-                    #    print(parsed_data)
+                    if counter % 100 == 0:
+                        print(parsed_data)
 
                 except TypeError:
                     print("Could not retrieve ESC data! Check if ESCs are powered!")
@@ -173,13 +198,22 @@ class PixhawkConnection:
                 if vnorm < limit[i] and seq_length[i] < max_seq_length-1 and not stop_flag:
                     data_array[i, seq_length[i], :7] = np.array([t, x, y, z, u, v, w])
 
-                    if PixhawkConnection.esc_data_avail:
-                        for j in range(7, 15):
-                            data_array[i, seq_length[i], j] = parsed_data[f'voltage_{4+j}']
-                            data_array[i, seq_length[i], j + 8] = parsed_data[f'current_{4+j}']
-                            data_array[i, seq_length[i], j + 16] = parsed_data[f'angVel_{4+j}']
-                            data_array[i, seq_length[i], j + 24] = parsed_data[f'inthtl_{4 + j}']
-                            data_array[i, seq_length[i], j + 32] = parsed_data[f'outthtl_{4 + j}']
+                    # fake data
+                    data_array[i, seq_length[i], 47] = t_ctrl
+                    data_array[i, seq_length[i], 48] = ctrl_status
+                    data_array[i, seq_length[i], 49] = n_out
+
+                    for j in range(7, 15):
+                        if PixhawkConnection.esc_data_avail:
+                            data_array[i, seq_length[i], j] = parsed_data[f'voltage_{4+j}']  # 7-14
+                            data_array[i, seq_length[i], j + 8] = parsed_data[f'current_{4+j}']  # 15-22
+                            data_array[i, seq_length[i], j + 16] = parsed_data[f'angVel_{4+j}']  # 23-30
+                            data_array[i, seq_length[i], j + 24] = parsed_data[f'inthtl_{4 + j}']  # 31-38
+                            data_array[i, seq_length[i], j + 32] = parsed_data[f'outthtl_{4 + j}'] # 39-46
+                        data_array[i, seq_length[i], j + 43] = controls[j - 7]  # 49-56
+                        data_array[i, seq_length[i], j + 51] = ctrl_output[j - 7]  # 58-65
+                        data_array[i, seq_length[i], j + 59] = pwm_limit[j - 7]  # 66-73
+                        data_array[i, seq_length[i], j + 67] = delta[j - 7]  # 74-81
 
                     seq_length[i] += 1
 
@@ -194,9 +228,14 @@ class PixhawkConnection:
                                    header='t,x,y,z,u,v,w,'
                                           'U11,U12,U13,U14,U15,U16,U17,U18,'
                                           'I11,I12,I13,I14,I15,I16,I17,I18,'
-                                          'omega1, omega2, omega3, omega4, omega5, omega6, omega7, omega8,'
-                                          'thr_in1, thr_in2, thr_in3, thr_in4, thr_in5, thr_in6, thr_in7, thr_in8,'
-                                          'thr_out1, thr_out2, thr_out3, thr_out4, thr_out5, thr_out6, thr_out7, thr_out8')
+                                          'omega1,omega2,omega3,omega4,omega5,omega6,omega7,omega8,'
+                                          'thr_in1,thr_in2,thr_in3,thr_in4,thr_in5,thr_in6,thr_in7,thr_in8,'
+                                          'thr_out1,thr_out2,thr_out3,thr_out4,thr_out5,thr_out6,thr_out7,thr_out8,'
+                                          'time_boot_ms,status,nooutputs,'
+                                          'ctrl_1, ctrl_2, ctrl_3, ctrl_4, ctrl_5, ctrl_6, ctrl_7, ctrl_8,'
+                                          'output1, output2, output3, output4, output5, output6, output7, output8,'
+                                          'pwm_1, pwm_2, pwm_3, pwm_4, pwm_5, pwm_6, pwm_7, pwm_8,'
+                                          'delta_1, delta_2, delta_3, delta_4, delta_5, delta_6, delta_7, delta_8')
 
                         seq_counter[i] += 1
 
@@ -226,21 +265,21 @@ async def control_loop():
             connected = await PixhawkConnection.initialize_drone()
 
             if connected:
-                state = 1
+                state = 2
             else:
                 await asyncio.sleep(5)
 
         if state == 1:
             print("State 1")
             # check if vehicle is armed
-            armed = await PixhawkConnection.check_armed_state()
-            #armed = 1 # comment out to use real armed flag
-            if armed:
-                print(f"-- Vehicle armed -> start logging")
-                state = 2
-            else:
-                print("Vehicle not armed -> waiting for armed state")
-                await asyncio.sleep(5)
+            #armed = await PixhawkConnection.check_armed_state()
+            armed = 1 # comment out to use real armed flag
+            #if armed:
+            #    print(f"-- Vehicle armed -> start logging")
+            #    state = 2
+            #else:
+            #    print("Vehicle not armed -> waiting for armed state")
+            #    await asyncio.sleep(5)
 
         if state == 2:
             print("State 2")
@@ -258,6 +297,7 @@ async def control_loop():
 if __name__ == '__main__':
 
     print("Data logger has been started!")
+    mavutil.set_dialect('development')
     try:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(control_loop())
