@@ -73,7 +73,8 @@ class PixhawkConnection:
                 print(f"-- Connected to pixhawk!")
                 break
             else:
-                return 0
+                continue
+                #return 0
 
         # try to connect to the ESCs
         try:
@@ -120,14 +121,19 @@ class PixhawkConnection:
         counter = 0
 
         start_time = time.time()
+        control_topic = cls.pixhawk.telemetry.actuator_control_target()
+        control_data = await control_topic.__anext__()
 
-        # here starts the loop which reads the data
         async for data in cls.pixhawk.telemetry.odometry():
+
+            if counter % 3 == 0 and counter != 0:
+                control_data = await control_topic.__anext__()
 
             """ Faked control allocation data -> needs to be replaced with real data from topic"""
             # ctrl_alloc = cls.pixhawk.recv_match(type='FIREFLY_CTRLALLOC', blocking=True)
             ctrl_alloc = {'time_boot_ms': 99770, 'status': 1, 'nooutputs': 8,
-                          'controls': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+                          'controls': control_data.controls,
+                          #'controls': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
                           'output': [-1, -1, -1, -1, -1, -1, -1, -1],
                           'pwm_limited': [900, 901, 902, 903, 904, 905, 906, 907, 908],
                           'delta': [0, 1, 2, 3, 4, 5, 6, 20]}
@@ -137,7 +143,7 @@ class PixhawkConnection:
                 logged_time = time.time()
                 v_av = np.sum(v_norm_array)/100
                 print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
-                #start_time = logged_time
+                start_time = logged_time
 
             t = data.time_usec
 
@@ -208,7 +214,7 @@ class PixhawkConnection:
 
                         np.savetxt(f'./flight_{log_number}/hover_{vel_limits[i]}_limit/sequence_{seq_counter[i]}_{seq_start}_{seq_end}.csv',
                                    data_array[i, :seq_length[i], :], delimiter=',', comments='',
-                                   header='t,x,y,z,u,v,w,p,q,r'
+                                   header='t,x,y,z,u,v,w,p,q,r,'
                                           'U11,U12,U13,U14,U15,U16,U17,U18,'
                                           'I11,I12,I13,I14,I15,I16,I17,I18,'
                                           'omega1,omega2,omega3,omega4,omega5,omega6,omega7,omega8,'
@@ -245,8 +251,8 @@ async def control_loop():
         if state == 0:
             print("State 0")
             # try to connect to Pixhawk
-            # connected = await PixhawkConnection.initialize_drone()
-            connected = 1
+            connected = await PixhawkConnection.initialize_drone()
+            #connected = 1
             if connected:
                 state = 1
             else:
@@ -255,7 +261,7 @@ async def control_loop():
         if state == 1:
             print("State 1")
             # check if vehicle is armed
-            #armed = await PixhawkConnection.check_armed_state()
+            armed = await PixhawkConnection.check_armed_state()
             armed = 1 # comment out to use real armed flag
             if armed:
                 print(f"-- Vehicle armed -> start logging")
@@ -269,7 +275,7 @@ async def control_loop():
 
             create_flight_folder() # create folder to save the flight data
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
-            #stop_task = asyncio.create_task(check_stop()) # comment in for real flight
+            #stop_task = asyncio.create_task(check_stop())  # comment in for real flight
             state = 3
 
         if state == 3:
