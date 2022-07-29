@@ -262,7 +262,7 @@ async def control_loop():
             print("State 1")
             # check if vehicle is armed
             armed = await PixhawkConnection.check_armed_state()
-            armed = 1 # comment out to use real armed flag
+            #armed = 1 # comment out to use real armed flag
             if armed:
                 print(f"-- Vehicle armed -> start logging")
                 state = 2
@@ -275,7 +275,7 @@ async def control_loop():
 
             create_flight_folder() # create folder to save the flight data
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
-            #stop_task = asyncio.create_task(check_stop())  # comment in for real flight
+            stop_task = asyncio.create_task(check_stop())  # comment in for real flight
             state = 3
 
         if state == 3:
