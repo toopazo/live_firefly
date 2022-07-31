@@ -1,19 +1,28 @@
 import os
 import sys
 import time
+
 import asyncio
+from aioconsole import ainput
 
 import numpy as np
 
 from mavsdk import System
 
 from esc_module import SensorIfaceWrapper, EscOptimizer
+from firefly_mavlink_live import FireflyMavlink, MavlinkSerialPort
+
+from timeit import default_timer as timer
+
+from pymavlink import mavutil
+import serial
 
 vel_limits = ['0.5', '1.0', '1.5', '2', '5', '10']
 
 # set global counter variable to create log saving folder
 log_number = 0
 stop_flag = False
+supress_output = False  # set that flag if nsh shell is open
 
 
 async def check_stop():
@@ -55,7 +64,7 @@ def create_flight_folder():
 class PixhawkConnection:
     esc_interface = None
     pixhawk = System()
-
+    nsh_cmd = "0 0 0"
     @classmethod
     async def initialize_drone(cls):
 
@@ -85,6 +94,12 @@ class PixhawkConnection:
             print("-- ESC data available --> NO")
             cls.esc_data_avail = False
 
+
+        fm = FireflyMavlink(port='/dev/ttyACM0', baudrate=57600)
+        cls.mav_serial = MavlinkSerialPort(fm.port, fm.baudrate, devnum=10)
+        cls.nsh_cmd = f'firefly write_delta 0 0 1'
+        #mav_serial.write(nsh_cmd + '\n')
+
         return 1
 
     @classmethod
@@ -98,9 +113,65 @@ class PixhawkConnection:
                 return 0
 
     @classmethod
+    async def set_nsh_command(cls):
+        """ Get nsh command and send it to pixhawk """
+        #while True:
+        print("Get input!")
+        global supress_output
+
+        while True:
+            supress_output = True
+            line = await ainput(">>> ")
+            print(f'Recieved the following input: {line}')
+            supress_output = False
+
+            #TODO: check if nsh command has right format
+
+            cls.nsh_cmd = f'firefly write_delta {line} 1'
+
+            #cls.mav_serial.write('\n')
+
+            try:
+                next_heartbeat_time = timer()
+
+                #while True:
+                #try:
+                    # fm_msg = _queue.get(block=False)
+                    #fm_msg = _queue.get(block=True, timeout=0.01)
+                    #assert isinstance(fm_msg, FireflyMavMsg)
+                    # print(f'A {FireflyMavMsg.__name__} was received')
+                    #if fm_msg.key == FireflyMavEnum.stop_running and fm_msg.val:
+                        #mav_serial.close()
+                        #return
+                    #if fm_msg.key == FireflyMavEnum.nsh_command:
+                        #cmd = fm_msg.val
+                cls.mav_serial.write(cls.nsh_cmd + '\n')
+                #print(cls.nsh_cmd)
+
+                data = cls.mav_serial.read(4096 * 4)
+
+                #if data and len(data) > 0:
+                #    print(data, end='')
+
+                # handle heartbeat sending
+                heartbeat_time = timer()
+                if heartbeat_time > next_heartbeat_time:
+                    cls.mav_serial.mav.mav.heartbeat_send(
+                        mavutil.mavlink.MAV_TYPE_GCS,
+                        mavutil.mavlink.MAV_AUTOPILOT_GENERIC, 0, 0, 0
+                    )
+                    next_heartbeat_time = heartbeat_time + 1
+                await asyncio.sleep(5)
+            except serial.serialutil.SerialException as e:
+                print(e)
+
+        return 1
+
+    @classmethod
     async def log_hovering(cls):
         """ Save 1000 data points to file """
         global stop_flag
+        global supress_output
         print("Start logging!")
 
         n_bins = len(vel_limits)
@@ -142,7 +213,9 @@ class PixhawkConnection:
             if counter % 100 == 0:
                 logged_time = time.time()
                 v_av = np.sum(v_norm_array)/100
-                print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
+
+                if not supress_output:
+                    print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av} - Current nsh-cmd: {PixhawkConnection.nsh_cmd}')
                 start_time = logged_time
 
             t = data.time_usec
@@ -262,7 +335,7 @@ async def control_loop():
             print("State 1")
             # check if vehicle is armed
             armed = await PixhawkConnection.check_armed_state()
-            #armed = 1 # comment out to use real armed flag
+            armed = 1 # comment out to use real armed flag
             if armed:
                 print(f"-- Vehicle armed -> start logging")
                 state = 2
@@ -275,12 +348,14 @@ async def control_loop():
 
             create_flight_folder() # create folder to save the flight data
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
-            stop_task = asyncio.create_task(check_stop())  # comment in for real flight
+            #stop_task = asyncio.create_task(check_stop())  # comment in for real flight
+            nsh_cmd_task = asyncio.create_task(PixhawkConnection.set_nsh_command())
             state = 3
 
         if state == 3:
             print("State 3")
             state = await hover_task
+            nsh_return = nsh_cmd_task
 
 if __name__ == '__main__':
 
@@ -291,6 +366,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("Stopped Program with Keyboard Interrupt")
         del PixhawkConnection.pixhawk
+        PixhawkConnection.mav_serial.close()
         loop.stop()
 
     print("Finished data logging!")
