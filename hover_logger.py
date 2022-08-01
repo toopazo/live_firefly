@@ -65,7 +65,7 @@ class PixhawkConnection:
     esc_interface = None
     pixhawk = System()
     nsh_cmd = f'firefly write_delta 0 0 1'
-    logger_cmd = '0 0'
+    logger_cmd = '+0.0 +0.0'
     armed = 0
     @classmethod
     async def initialize_drone(cls):
@@ -131,11 +131,11 @@ class PixhawkConnection:
 
             try:
 
-                if len(line) != 3:
-                    raise ValueError
+                #if len(line) != 3:
+                #    raise ValueError
 
-                cmd_1 = int(line[0])
-                cmd_2 = int(line[2])
+                #cmd_1 = float(line[0:3])
+                #cmd_2 = float(line[4:])
 
                 cls.nsh_cmd = f'firefly write_delta {line} 1'
                 print(f'sent cmd: {cls.nsh_cmd}')
@@ -282,8 +282,8 @@ class PixhawkConnection:
                     data_array[i, seq_length[i], 51] = ctrl_status
                     data_array[i, seq_length[i], 52] = n_out
 
-                    data_array[i, seq_length[i], -2] = cls.logger_cmd[0]
-                    data_array[i, seq_length[i], -1] = cls.logger_cmd[2]
+                    data_array[i, seq_length[i], -2] = float(cls.logger_cmd[0:4])
+                    data_array[i, seq_length[i], -1] = float(cls.logger_cmd[5:9])
 
                     for j in range(10, 18):
                         if PixhawkConnection.esc_data_avail:
