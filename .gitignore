@@ -11,3 +11,6 @@ __pycache__
 *.pyc
 /logs
 
+download_logfile.py
+test_pymavlink.py
+testfile2.py

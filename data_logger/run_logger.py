@@ -9,8 +9,8 @@ import numpy as np
 
 from mavsdk import System
 
-from esc_module import SensorIfaceWrapper, EscOptimizer
-from firefly_mavlink_live import FireflyMavlink, MavlinkSerialPort
+from esc_connection import SensorIfaceWrapper
+from mavlink_serial_connection import MavlinkSerialPort, check_nsh_input
 
 from timeit import default_timer as timer
 
@@ -44,40 +44,10 @@ def create_flight_folder():
             os.mkdir(f'{log_path}/hover_{limit}_limit')
 
 
-def check_nsh_input(cmd_input, old_cmd):
-    check_flag = np.zeros(3)
-
-    try:
-        cmd = [float(a) for a in cmd_input.split(' ')]
-        check_flag[0] = (len(cmd) == 2)
-        check_flag[1] = np.around(np.abs(old_cmd[0] - cmd[0]), decimals=2) <= 0.2
-        check_flag[2] = np.around(np.abs(old_cmd[1] - cmd[1]), decimals=2) <= 0.2
-
-    except ValueError:  # Raised if input is not float
-        return -1, False, "Commands could not be casted into float values!"
-
-    except IndexError:  # Raised it there are less than 2 commands
-        return -1, False, "Less than 2 commands. Please enter exact 2 commands!"
-
-    # check if there are exactly two commands
-    if not check_flag[0]:
-        return -1, False, "More than 2 commands. Please enter exact two commands!"
-
-    # check if delta between commands is lower than 0.2
-    if not check_flag[1] or not check_flag[2]:
-        return -1, False, f'Difference to previous commands ({old_cmd[0]}, {old_cmd[1]}) to large. Please limit steps to a maximum delta of 0.2'
-
-    # final check if all flags are true
-    if np.all(check_flag == True):
-        return cmd, True, "Arguments valid!"
-    else:
-        return -1, False, "Unknown Error!"
-
-
-class PixhawkConnection:
+class DataLogger:
     esc_interface = None
     stop_flag = False
-    pixhawk = System()
+    telem2 = System()
     mav_serial = None
     current_delta0 = [0.0, 0.0]
     armed = 0
@@ -88,13 +58,13 @@ class PixhawkConnection:
         # connect to TELEM2 port
         try:
             print("Connecting to TELEM2 port -> ", end=" ")
-            await asyncio.wait_for(cls.pixhawk.connect(system_address="serial:///dev/ttyUSB0:921600"), timeout=3)
+            await asyncio.wait_for(cls.telem2.connect(system_address="serial:///dev/ttyUSB0:921600"), timeout=3)
 
         except asyncio.TimeoutError:
             print("FAILURE (Timeout)", end="\r")
             return 0
 
-        async for state in cls.pixhawk.core.connection_state():
+        async for state in cls.telem2.core.connection_state():
 
             if state.is_connected:
                 print("SUCCESS")
@@ -117,8 +87,8 @@ class PixhawkConnection:
         # connect to the UDP port
         try:
             print("Connecting to UDP port -> ", end=" ")
-            fm = FireflyMavlink(port='/dev/ttyACM0', baudrate=57600)
-            cls.mav_serial = MavlinkSerialPort(fm.port, fm.baudrate, devnum=10)
+            #fm = FireflyMavlink(port='/dev/ttyACM0', baudrate=57600)
+            cls.mav_serial = MavlinkSerialPort(portname='/dev/ttyACM0', baudrate=57600, devnum=10)
             print("SUCCESS")
 
         except serial.serialutil.SerialException:
@@ -130,7 +100,7 @@ class PixhawkConnection:
     @classmethod
     async def check_armed_state(cls, debug=False):
 
-        async for armed_state in cls.pixhawk.telemetry.armed():
+        async for armed_state in cls.telem2.telemetry.armed():
 
             if debug:
                 armed_state = True
@@ -158,23 +128,19 @@ class PixhawkConnection:
             else:
                 await asyncio.sleep(5)  # wait 5 second to make sure, that last part of flight is logged
                 cls.stop_flag = True
-                #cls.send_nsh_cmd([0.0, 0.0])
                 break
 
     @classmethod
-    async def get_nsh_cmd(cls):
-        """ Get nsh command and send it to pixhawk """
+    async def poll_nsh_cmd(cls):
+        """ Get nsh command and send it to telem2 """
 
         global supress_output
 
         while cls.armed:
-            #print(f'NSH: armed {cls.armed}', file=sys.stderr)
-
             supress_output = True
 
             # await user input
             cmd_input = await ainput(">>> ")
-            # cmd_input = "0 0"
 
             # check for command to continue
             if cmd_input == "":
@@ -192,7 +158,6 @@ class PixhawkConnection:
                     # sweep down
                     while cmd > -1 and cls.armed:
                         cmd = np.around((cmd - 0.1), decimals=2)
-                        #print(f'{cls.armed} ', end="")
                         cls.send_nsh_cmd([cmd, cmd])
                         await asyncio.sleep(2)
                     cmd = -1.0
@@ -200,18 +165,16 @@ class PixhawkConnection:
                     # sweep up
                     while cmd < 0 and cls.armed:
                         cmd = np.around((cmd + 0.1), decimals=2)
-                        #print(f'{cls.armed} ', end="")
                         cls.send_nsh_cmd([cmd, cmd])
                         await asyncio.sleep(2)
-                    #cls.send_nsh_cmd([0.0, 0.0])
+
                     continue
 
-            # TODO: check if nsh command has right format
+            # check that nsh command has right format
             parsed_cmd, valid, message = check_nsh_input(cmd_input, cls.current_delta0)
 
             if valid:
                 cls.send_nsh_cmd(parsed_cmd)
-                #cls.current_delta0 = parsed_cmd
                 supress_output = False
                 await asyncio.sleep(5)
 
@@ -239,12 +202,10 @@ class PixhawkConnection:
     #         if reset_cmd_1:
     #             cmd[1] = cls.current_delta0[1] - np.sign(cls.current_delta0[1]) * 0.1
 
-
     @classmethod
     def send_nsh_cmd(cls, cmd):
 
         nsh_cmd = f'firefly write_delta {cmd[0]} {cmd[1]} 1'
-        print(f'sent cmd: {nsh_cmd}')
 
         try:
             next_heartbeat_time = timer()
@@ -252,15 +213,11 @@ class PixhawkConnection:
             # check if
             if not cmd == cls.current_delta0:
                 cls.mav_serial.write(nsh_cmd + '\n')
-            # print(cls.nsh_cmd)
+                print(f'sent cmd: {nsh_cmd}')
 
             data = cls.mav_serial.read(4096 * 12)
             while data != "":  # Flush buffer
-                # print(data)
                 data = cls.mav_serial.read(4096 * 12)
-            # print(data)
-            # if data and len(data) > 0:
-            #    print(data, end='')
 
             # handle heartbeat sending
             heartbeat_time = timer()
@@ -300,16 +257,16 @@ class PixhawkConnection:
         counter = 0
 
         start_time = time.time()
-        control_topic = cls.pixhawk.telemetry.actuator_control_target()
+        control_topic = cls.telem2.telemetry.actuator_control_target()
         control_data = await control_topic.__anext__()
 
-        async for data in cls.pixhawk.telemetry.odometry():
+        async for data in cls.telem2.telemetry.odometry():
 
             if counter % 3 == 0 and counter != 0:
                 control_data = await control_topic.__anext__()
 
             """ Faked control allocation data -> needs to be replaced with real data from topic"""
-            # ctrl_alloc = cls.pixhawk.recv_match(type='FIREFLY_CTRLALLOC', blocking=True)
+            # ctrl_alloc = cls.telem2.recv_match(type='FIREFLY_CTRLALLOC', blocking=True)
             ctrl_alloc = {'time_boot_ms': 99770, 'status': 1, 'nooutputs': 8,
                           'controls': control_data.controls,
                           # 'controls': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
@@ -353,14 +310,14 @@ class PixhawkConnection:
 
             v_norm_array[counter % 100] = vnorm
 
-            if PixhawkConnection.esc_data_avail:
+            if DataLogger.esc_data_avail:
                 try:
-                    sensor_data = PixhawkConnection.esc_interface.get_data()
-                    parsed_data = EscOptimizer.parse_sensor_data(sensor_data)
+                    sensor_data = cls.esc_interface.get_data()
+                    parsed_data = cls.esc_interface.parse_sensor_data(sensor_data)
 
                 except TypeError:
                     print("Could not retrieve ESC data! Check if ESCs are powered!")
-                    PixhawkConnection.esc_data_avail = False
+                    DataLogger.esc_data_avail = False
 
             for i in range(n_bins):
                 if vnorm < limit[i] and seq_length[i] < max_seq_length - 1 and not cls.stop_flag:
@@ -375,7 +332,7 @@ class PixhawkConnection:
                     data_array[i, seq_length[i], -1] = float(cls.current_delta0[1])
 
                     for j in range(10, 18):
-                        if PixhawkConnection.esc_data_avail:
+                        if DataLogger.esc_data_avail:
                             data_array[i, seq_length[i], j] = parsed_data[f'voltage_{1 + j}']  # 10-17
                             data_array[i, seq_length[i], j + 8] = parsed_data[f'current_{1 + j}']  # 18-25
                             data_array[i, seq_length[i], j + 16] = parsed_data[f'angVel_{1 + j}']  # 26-33
@@ -418,7 +375,6 @@ class PixhawkConnection:
 
             # check for interrupt flag
             if cls.stop_flag:
-                # del cls.pixhawk
                 cls.stop_flag = False
                 return 1
 
@@ -435,7 +391,7 @@ async def control_loop():
         if state == 0:
 
             # try to connect to Pixhawk
-            connected = await PixhawkConnection.connect_to_pixhawk()
+            connected = await DataLogger.connect_to_pixhawk()
             # connected = 1
 
             if connected:
@@ -446,7 +402,7 @@ async def control_loop():
         if state == 1:
             print("Check for arming status -> ", end=" ")
             # check if vehicle is armed
-            state = await PixhawkConnection.check_armed_state(debug=False) + 1
+            state = await DataLogger.check_armed_state(debug=True) + 1
 
         if state == 2:
             print(f"ARMED")
@@ -454,20 +410,24 @@ async def control_loop():
 
             create_flight_folder()  # create folder to save the flight data
 
-            #PixhawkConnection.send_nsh_cmd([0.0, 0.0])  # make sure that delta0 is 0 before takeoff
-
             # create tasks for logging, stopping and sending nsh command
-            hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
-            stop_task = asyncio.create_task(PixhawkConnection.check_stop())  # comment in for real flight
-            nsh_cmd_task = asyncio.create_task(PixhawkConnection.get_nsh_cmd())
+            #hover_task = asyncio.create_task(DataLogger.log_hovering())
+            #stop_task = asyncio.create_task(DataLogger.check_stop())  # comment in for real flight
+            #nsh_cmd_task = asyncio.create_task(DataLogger.get_nsh_cmd())
             state = 3
 
         if state == 3:
             print("Logger running...")
-            nsh_result = await nsh_cmd_task
-            state = await hover_task
-            stop = await stop_task
-            #print("Completed!")
+            try:
+                print("Inside try!")
+                L = await asyncio.gather(DataLogger.log_hovering(), DataLogger.poll_nsh_cmd())
+                #nsh_result = await nsh_cmd_task
+                #state = await hover_task
+
+                #stop = await stop_task
+                print("Finished try!")
+            except KeyboardInterrupt:
+                print("Catched!")
 
 
 if __name__ == '__main__':
@@ -479,10 +439,10 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("")
         print("Stopped Program with Keyboard Interrupt")
-        del PixhawkConnection.pixhawk
+        del DataLogger.telem2
 
-        if hasattr(PixhawkConnection, 'mavserial'):
-            PixhawkConnection.mav_serial.close()
+        if hasattr(DataLogger, 'mavserial'):
+            DataLogger.mav_serial.close()
 
         loop.stop()
 
