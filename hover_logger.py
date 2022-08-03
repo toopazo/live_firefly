@@ -50,8 +50,8 @@ def check_nsh_input(cmd_input, old_cmd):
     try:
         cmd = [float(a) for a in cmd_input.split(' ')]
         check_flag[0] = (len(cmd) == 2)
-        check_flag[1] = np.abs(old_cmd[0] - cmd[0]) <= 0.2
-        check_flag[2] = np.abs(old_cmd[1] - cmd[1]) <= 0.2
+        check_flag[1] = np.around(np.abs(old_cmd[0] - cmd[0]), decimals=2) <= 0.2
+        check_flag[2] = np.around(np.abs(old_cmd[1] - cmd[1]), decimals=2) <= 0.2
 
     except ValueError:  # Raised if input is not float
         return -1, False, "Commands could not be casted into float values!"
@@ -136,27 +136,29 @@ class PixhawkConnection:
                 armed_state = True
 
             if armed_state:
-                print(f"ARMED")
+
                 cls.armed = 1
-                return 2
+                return 1
             else:
                 print("WAITING for vehicle to be armed", end="\r")
                 cls.armed = 0
                 await asyncio.sleep(5)
-                return 1
+                return 0
 
     @classmethod
     async def check_stop(cls):
 
         while True:
-            armed = await PixhawkConnection.check_armed_state()
-            PixhawkConnection.armed = armed
+            armed = await cls.check_armed_state()
+            cls.armed = armed
+
             if armed:
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
                 continue
             else:
                 await asyncio.sleep(5)  # wait 5 second to make sure, that last part of flight is logged
                 cls.stop_flag = True
+                #cls.send_nsh_cmd([0.0, 0.0])
                 break
 
     @classmethod
@@ -166,25 +168,50 @@ class PixhawkConnection:
         global supress_output
 
         while cls.armed:
+            #print(f'NSH: armed {cls.armed}', file=sys.stderr)
 
             supress_output = True
 
             # await user input
             cmd_input = await ainput(">>> ")
-            # cmd_input = ""
+            # cmd_input = "0 0"
+
+            # check for command to continue
             if cmd_input == "":
                 supress_output = False
                 await asyncio.sleep(10)
                 continue
 
-            print(f'Received the following input: {cmd_input}')
+            # check for command to sweep through delta0 space
+            if cmd_input == "sweep":
+                if cls.current_delta0 != [0.0, 0.0]:
+                    print("Current delta0 not equal to 0! Reset first!")
+                    continue
+                else:
+                    cmd = 0.0
+                    # sweep down
+                    while cmd > -1 and cls.armed:
+                        cmd = np.around((cmd - 0.1), decimals=2)
+                        #print(f'{cls.armed} ', end="")
+                        cls.send_nsh_cmd([cmd, cmd])
+                        await asyncio.sleep(2)
+                    cmd = -1.0
+
+                    # sweep up
+                    while cmd < 0 and cls.armed:
+                        cmd = np.around((cmd + 0.1), decimals=2)
+                        #print(f'{cls.armed} ', end="")
+                        cls.send_nsh_cmd([cmd, cmd])
+                        await asyncio.sleep(2)
+                    #cls.send_nsh_cmd([0.0, 0.0])
+                    continue
 
             # TODO: check if nsh command has right format
             parsed_cmd, valid, message = check_nsh_input(cmd_input, cls.current_delta0)
 
             if valid:
                 cls.send_nsh_cmd(parsed_cmd)
-                cls.current_delta0 = parsed_cmd
+                #cls.current_delta0 = parsed_cmd
                 supress_output = False
                 await asyncio.sleep(5)
 
@@ -193,6 +220,25 @@ class PixhawkConnection:
                 supress_output = False
                 await asyncio.sleep(1)
         return 1
+
+    # @classmethod
+    # def reset_delta(cls):
+    #     cmd = [0, 0]
+    #
+    #     reset_cmd_0 = True
+    #     reset_cmd_1 = True
+    #
+    #     while reset_cmd_0 and reset_cmd_1:
+    #
+    #         reset_cmd_0 = np.around(np.abs(cls.current_delta0[0]), decimal=1) > 0
+    #         reset_cmd_1 = np.around(np.abs(cls.current_delta0[1]), decimal=1) > 0
+    #
+    #         if reset_cmd_0:
+    #             cmd[0] = cls.current_delta0[0] - np.sign(cls.current_delta0[0]) * 0.1
+    #
+    #         if reset_cmd_1:
+    #             cmd[1] = cls.current_delta0[1] - np.sign(cls.current_delta0[1]) * 0.1
+
 
     @classmethod
     def send_nsh_cmd(cls, cmd):
@@ -225,6 +271,7 @@ class PixhawkConnection:
                 )
                 next_heartbeat_time = heartbeat_time + 1
 
+            cls.current_delta0 = cmd
         except serial.serialutil.SerialException as e:
             print(e)
 
@@ -399,14 +446,19 @@ async def control_loop():
         if state == 1:
             print("Check for arming status -> ", end=" ")
             # check if vehicle is armed
-            state = await PixhawkConnection.check_armed_state(debug=False)
+            state = await PixhawkConnection.check_armed_state(debug=False) + 1
 
         if state == 2:
+            print(f"ARMED")
             print("Create flight folder and start logging...")
 
             create_flight_folder()  # create folder to save the flight data
+
+            #PixhawkConnection.send_nsh_cmd([0.0, 0.0])  # make sure that delta0 is 0 before takeoff
+
+            # create tasks for logging, stopping and sending nsh command
             hover_task = asyncio.create_task(PixhawkConnection.log_hovering())
-            # stop_task = asyncio.create_task(check_stop())  # comment in for real flight
+            stop_task = asyncio.create_task(PixhawkConnection.check_stop())  # comment in for real flight
             nsh_cmd_task = asyncio.create_task(PixhawkConnection.get_nsh_cmd())
             state = 3
 
@@ -414,6 +466,8 @@ async def control_loop():
             print("Logger running...")
             nsh_result = await nsh_cmd_task
             state = await hover_task
+            stop = await stop_task
+            #print("Completed!")
 
 
 if __name__ == '__main__':
