@@ -217,14 +217,14 @@ class DataLogger:
         # sweep down
         while cmd > -1 and not cls.reset_trigger:
             cmd = np.around((cmd - 0.1), decimals=2)
-            cls.send_nsh_cmd([cmd, cmd], False)
+            cls.send_nsh_cmd([cmd, cmd], True)
             await asyncio.sleep(timestep)
         cmd = -1.0
 
         # sweep up
         while cmd < 0 and not cls.reset_trigger:
             cmd = np.around((cmd + 0.1), decimals=2)
-            cls.send_nsh_cmd([cmd, cmd], False)
+            cls.send_nsh_cmd([cmd, cmd], True)
             await asyncio.sleep(timestep)
         print("Sweep complete!")
 
@@ -310,6 +310,7 @@ class DataLogger:
         counter = 0
 
         start_time = time.time()
+        previous_time = start_time
         control_topic = cls.telem2.telemetry.actuator_control_target()
         control_data = await control_topic.__anext__()
 
@@ -333,9 +334,10 @@ class DataLogger:
                 v_av = np.sum(v_norm_array) / 100
 
                 #if not supress_output:
-                print_to_logfile(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}\n')
+                msg = f'{logged_time - start_time}s elapsed! Logged {counter} data points. Took {logged_time - previous_time} seconds for the last 100 data points\n'
+                print_to_logfile(msg)
                     #print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
-                start_time = logged_time
+                previous_time = logged_time
 
             t = data.time_usec
 
@@ -456,7 +458,7 @@ async def control_loop():
         if state == 1:
             print("Check for arming status -> ", end=" ")
             # check if vehicle is armed
-            state = await DataLogger.check_armed_state(debug=True) + 1
+            state = await DataLogger.check_armed_state(debug=False) + 1
 
         if state == 2:
             print(f"ARMED")
@@ -466,7 +468,7 @@ async def control_loop():
 
             # create tasks for logging, stopping and sending nsh command
             hover_task = asyncio.create_task(DataLogger.log_hovering())
-            #stop_task = asyncio.create_task(DataLogger.check_stop())  # comment in for real flight
+            stop_task = asyncio.create_task(DataLogger.check_stop())  # comment in for real flight
             nsh_cmd_task = asyncio.create_task(DataLogger.poll_nsh_cmd())
             state = 3
 
@@ -477,6 +479,7 @@ async def control_loop():
                 #L = await asyncio.gather(DataLogger.log_hovering(), DataLogger.poll_nsh_cmd())
                 nsh_result = await nsh_cmd_task
                 state = await hover_task
+                stop = await stop_task
 
                 #stop = await stop_task
                 print("Finished try!")
