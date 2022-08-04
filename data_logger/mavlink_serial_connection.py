@@ -81,8 +81,8 @@ def check_nsh_input(cmd_input, old_cmd):
     try:
         cmd = [float(a) for a in cmd_input.split(' ')]
         check_flag[0] = (len(cmd) == 2)
-        check_flag[1] = np.around(np.abs(old_cmd[0] - cmd[0]), decimals=2) <= 0.2
-        check_flag[2] = np.around(np.abs(old_cmd[1] - cmd[1]), decimals=2) <= 0.2
+        check_flag[1] = np.around(np.abs(old_cmd[0] - cmd[0]), decimals=2) <= 1
+        check_flag[2] = np.around(np.abs(old_cmd[1] - cmd[1]), decimals=2) <= 1
 
     except ValueError:  # Raised if input is not float
         return -1, False, "Commands could not be casted into float values!"

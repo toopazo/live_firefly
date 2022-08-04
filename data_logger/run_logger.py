@@ -43,6 +43,19 @@ def create_flight_folder():
         if not os.path.isdir(log_path + f'/hover_{limit}_limit'):
             os.mkdir(f'{log_path}/hover_{limit}_limit')
 
+    # create logfile for console output
+    with open(f'{log_path}/console_output.txt', 'w') as fp:
+        pass
+
+
+def print_to_logfile(msg):
+
+    current_path = os.getcwd()
+    log_path = current_path + f'/flight_{log_number}'
+
+    with open(f'{log_path}/console_output.txt', 'a') as fp:
+        fp.write(msg)
+
 
 class DataLogger:
     esc_interface = None
@@ -51,6 +64,7 @@ class DataLogger:
     mav_serial = None
     current_delta0 = [0.0, 0.0]
     armed = 0
+    reset_trigger = False
 
     @classmethod
     async def connect_to_pixhawk(cls):
@@ -135,48 +149,61 @@ class DataLogger:
         """ Get nsh command and send it to telem2 """
 
         global supress_output
+        reset_counter = 0
 
         while cls.armed:
             supress_output = True
 
             # await user input
             cmd_input = await ainput(">>> ")
+            #cmd_input = "0 0"
 
             # check for command to continue
             if cmd_input == "":
                 supress_output = False
-                await asyncio.sleep(10)
-                continue
+                reset_counter += 1
 
-            # check for command to sweep through delta0 space
-            if cmd_input == "sweep":
-                if cls.current_delta0 != [0.0, 0.0]:
-                    print("Current delta0 not equal to 0! Reset first!")
-                    continue
+                if reset_counter >= 3:
+                    cls.reset_trigger = True
+                    print("Reset triggered!")
+                    await cls.reset_delta()
                 else:
-                    cmd = 0.0
-                    # sweep down
-                    while cmd > -1 and cls.armed:
-                        cmd = np.around((cmd - 0.1), decimals=2)
-                        cls.send_nsh_cmd([cmd, cmd])
-                        await asyncio.sleep(2)
-                    cmd = -1.0
+                    await asyncio.sleep(0.5)
 
-                    # sweep up
-                    while cmd < 0 and cls.armed:
-                        cmd = np.around((cmd + 0.1), decimals=2)
-                        cls.send_nsh_cmd([cmd, cmd])
-                        await asyncio.sleep(2)
-
-                    continue
+                continue
+            reset_counter = 0
 
             # check that nsh command has right format
             parsed_cmd, valid, message = check_nsh_input(cmd_input, cls.current_delta0)
 
+            # check for command to sweep through delta0 space
+            try:
+                sweep = cmd_input.split()
+
+                if sweep[0] == "sweep":
+
+                    timestep = float(sweep[1])
+
+                    if timestep < 0 or np.abs(timestep) < 0.2:
+                        print("Timestep must be positive and larger than 0.2 seconds!")
+                        continue
+
+                    if cls.current_delta0 != [0.0, 0.0]:
+                        print("Current delta0 not equal to 0! Reset first!")
+                        continue
+
+                    else:
+                        print("Start sweep... Press 3x Enter to interrupt!")
+                        asyncio.ensure_future(cls.make_sweep(timestep))
+                        continue
+
+            except IndexError:
+                message = "Missing steptime for sweep! Use 'sweep [TIME BETWEEN STEPS]'"
+
             if valid:
                 cls.send_nsh_cmd(parsed_cmd)
                 supress_output = False
-                await asyncio.sleep(5)
+                await asyncio.sleep(1)
 
             else:
                 print(message)
@@ -184,26 +211,50 @@ class DataLogger:
                 await asyncio.sleep(1)
         return 1
 
-    # @classmethod
-    # def reset_delta(cls):
-    #     cmd = [0, 0]
-    #
-    #     reset_cmd_0 = True
-    #     reset_cmd_1 = True
-    #
-    #     while reset_cmd_0 and reset_cmd_1:
-    #
-    #         reset_cmd_0 = np.around(np.abs(cls.current_delta0[0]), decimal=1) > 0
-    #         reset_cmd_1 = np.around(np.abs(cls.current_delta0[1]), decimal=1) > 0
-    #
-    #         if reset_cmd_0:
-    #             cmd[0] = cls.current_delta0[0] - np.sign(cls.current_delta0[0]) * 0.1
-    #
-    #         if reset_cmd_1:
-    #             cmd[1] = cls.current_delta0[1] - np.sign(cls.current_delta0[1]) * 0.1
+    @classmethod
+    async def make_sweep(cls, timestep):
+        cmd = 0.0
+        # sweep down
+        while cmd > -1 and not cls.reset_trigger:
+            cmd = np.around((cmd - 0.1), decimals=2)
+            cls.send_nsh_cmd([cmd, cmd], False)
+            await asyncio.sleep(timestep)
+        cmd = -1.0
+
+        # sweep up
+        while cmd < 0 and not cls.reset_trigger:
+            cmd = np.around((cmd + 0.1), decimals=2)
+            cls.send_nsh_cmd([cmd, cmd], False)
+            await asyncio.sleep(timestep)
+        print("Sweep complete!")
 
     @classmethod
-    def send_nsh_cmd(cls, cmd):
+    async def reset_delta(cls):
+        cmd = [0, 0]
+
+        reset_cmd_0 = True
+        reset_cmd_1 = True
+
+        while reset_cmd_0 and reset_cmd_1:
+
+            reset_cmd_0 = np.around(np.abs(cls.current_delta0[0]), decimals=1) > 0
+            reset_cmd_1 = np.around(np.abs(cls.current_delta0[1]), decimals=1) > 0
+
+            if reset_cmd_0:
+                cmd[0] = cls.current_delta0[0] - np.sign(cls.current_delta0[0]) * 0.1
+
+            if reset_cmd_1:
+                cmd[1] = cls.current_delta0[1] - np.sign(cls.current_delta0[1]) * 0.1
+
+            cls.send_nsh_cmd([cmd[0], cmd[1]])
+            await asyncio.sleep(0.3)
+
+        # send [0, 0] as final command to make sure delta0 is reset to [0, 0]
+        cls.send_nsh_cmd([0, 0])
+        cls.reset_trigger = False
+
+    @classmethod
+    def send_nsh_cmd(cls, cmd, verbose=True):
 
         nsh_cmd = f'firefly write_delta {cmd[0]} {cmd[1]} 1'
 
@@ -213,7 +264,9 @@ class DataLogger:
             # check if
             if not cmd == cls.current_delta0:
                 cls.mav_serial.write(nsh_cmd + '\n')
-                print(f'sent cmd: {nsh_cmd}')
+
+                if verbose:
+                    print(f'sent cmd: {nsh_cmd}')
 
             data = cls.mav_serial.read(4096 * 12)
             while data != "":  # Flush buffer
@@ -279,8 +332,9 @@ class DataLogger:
                 logged_time = time.time()
                 v_av = np.sum(v_norm_array) / 100
 
-                if not supress_output:
-                    print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
+                #if not supress_output:
+                print_to_logfile(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}\n')
+                    #print(f'Logged {counter} data points after {logged_time - start_time} seconds. Avg. vnorm = {v_av}')
                 start_time = logged_time
 
             t = data.time_usec
@@ -411,18 +465,18 @@ async def control_loop():
             create_flight_folder()  # create folder to save the flight data
 
             # create tasks for logging, stopping and sending nsh command
-            #hover_task = asyncio.create_task(DataLogger.log_hovering())
+            hover_task = asyncio.create_task(DataLogger.log_hovering())
             #stop_task = asyncio.create_task(DataLogger.check_stop())  # comment in for real flight
-            #nsh_cmd_task = asyncio.create_task(DataLogger.get_nsh_cmd())
+            nsh_cmd_task = asyncio.create_task(DataLogger.poll_nsh_cmd())
             state = 3
 
         if state == 3:
             print("Logger running...")
             try:
-                print("Inside try!")
-                L = await asyncio.gather(DataLogger.log_hovering(), DataLogger.poll_nsh_cmd())
-                #nsh_result = await nsh_cmd_task
-                #state = await hover_task
+                #print("Inside try!")
+                #L = await asyncio.gather(DataLogger.log_hovering(), DataLogger.poll_nsh_cmd())
+                nsh_result = await nsh_cmd_task
+                state = await hover_task
 
                 #stop = await stop_task
                 print("Finished try!")
