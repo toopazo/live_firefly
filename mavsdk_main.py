@@ -7,8 +7,8 @@ class MavFirefly:
     @staticmethod
     async def initialize_drone():
         drone = System()
-        await drone.connect(system_address="serial:///dev/ttyACM0:921600")
-        # await drone.connect(system_address="serial:///dev/ttyUSB1:921600")
+        # await drone.connect(system_address="serial:///dev/ttyACM0:921600")
+        await drone.connect(system_address="serial:/dev/ttyUSB2:921600")
 
         print("Waiting for drone to connect...")
         async for state in drone.core.connection_state():

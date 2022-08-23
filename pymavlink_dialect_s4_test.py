@@ -30,7 +30,7 @@ if __name__ == '__main__':
     mavutil.set_dialect('development')
     # mavutil.set_dialect('ardupilotmega')
     drone = mavutil.mavlink_connection(device="/dev/ttyACM0", baudrate="921600", dialect='development')
-    # drone = mavutil.mavlink_connection(device="/dev/ttyUSB1", baudrate="921600", dialect='development')
+    # drone = mavutil.mavlink_connection(device="/dev/ttyUSB2", baudrate="921600", dialect='development')
     # drone = mavutil.mavlink_connection(device="/dev/ttyUSB1", baudrate="921600")
     print(f'drone {drone}')
 
@@ -74,13 +74,18 @@ if __name__ == '__main__':
     # print(f'msg {msg}')
 
     # Wait for a 'SYS_STATUS' message with the specified values.
-    wait_for_msg('SYS_STATUS')
-    wait_for_msg('ODOMETRY')
-    wait_for_msg('FIREFLY_CTRLALLOC')
+    while True:
+        wait_for_msg('SYS_STATUS')
+        wait_for_msg('ODOMETRY')
+        wait_for_msg('FIREFLY_CTRLALLOC')
     # wait_for_msg('POSITION_TARGET_LOCAL_NED')
 
-    # mavlink stream -d /dev/ttyS1 -s FIREFLY_CTRLALLOC -r 30
-    # mavlink stream -d /dev/ttyS1 -s POSITION_TARGET_LOCAL_NED -r 30
+    # mavlink stream -d /dev/ttyACM0 -s FIREFLY_CTRLALLOC -r 30
+    # mavlink stream -d /dev/ttyACM0 -s ODOMETRY -r 30
 
     # mavlink start -d /dev/ttyACM0 -b 2000000 -r 800000 -x
     # mavlink start -d /dev/ttyS2 -b 115200 -r 2000 -x
+    # mavlink start -d /dev/ttyACM0 -m config -x
+    # mavlink start -d /dev/ttyS2 -b 921600 -r 800000 -m onboard -Z
+    # mavlink start -d /dev/ttyACM0 -b 2000000 -r 800000 -m onboard -Z
+

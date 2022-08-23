@@ -366,7 +366,7 @@
         <field type="float[8]" name="delta" units="">Delta command for coaxial pair / arm</field>
       </message>
       <message id="9124" name="FIREFLY_CTRLALLOC">
-        <description>Get the current state of the controll allocation unit.
+        <description>Get the current state of the control allocation unit.
           Custom message to read the current state of the firefly control allocation unit (coaxial rotors).
         </description>
         <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
