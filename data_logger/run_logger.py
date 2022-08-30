@@ -17,7 +17,7 @@ from timeit import default_timer as timer
 from pymavlink import mavutil
 import serial
 
-vel_limits = ['0.5', '1.0', '1.5', '2', '5', '10']
+vel_limits = ['0.5', '1', '1.5', '2', '100']
 
 # set global counter variable to create log saving folder
 log_number = 0
@@ -215,14 +215,22 @@ class DataLogger:
     async def make_sweep(cls, timestep):
         cmd = 0.0
         # sweep down
-        while cmd > -1 and not cls.reset_trigger:
+        while cmd > -1:
+            if cls.reset_trigger:
+                cls.reset_trigger = False
+                return
             cmd = np.around((cmd - 0.1), decimals=2)
             cls.send_nsh_cmd([cmd, cmd], True)
             await asyncio.sleep(timestep)
         cmd = -1.0
 
+        await asyncio.sleep(timestep)
+
         # sweep up
-        while cmd < 0 and not cls.reset_trigger:
+        while cmd < 0:
+            if cls.reset_trigger:
+                cls.reset_trigger = False
+                return
             cmd = np.around((cmd + 0.1), decimals=2)
             cls.send_nsh_cmd([cmd, cmd], True)
             await asyncio.sleep(timestep)
@@ -251,7 +259,7 @@ class DataLogger:
 
         # send [0, 0] as final command to make sure delta0 is reset to [0, 0]
         cls.send_nsh_cmd([0, 0])
-        cls.reset_trigger = False
+        #cls.reset_trigger = False
 
     @classmethod
     def send_nsh_cmd(cls, cmd, verbose=True):
