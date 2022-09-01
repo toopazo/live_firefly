@@ -1,4 +1,6 @@
-
+.ipynb_checkpoints/
+Garbage.ipynb
+testfile.py
 /venv/
 venv
 .idea/
@@ -9,3 +11,6 @@ __pycache__
 *.pyc
 /logs
 
+download_logfile.py
+test_pymavlink.py
+testfile2.py

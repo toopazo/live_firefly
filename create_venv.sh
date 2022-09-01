@@ -34,6 +34,7 @@ python -m pip install scipy
 python -m pip install pandas
 python -m pip install matplotlib
 python -m pip install mavsdk
+python -m pip install grpcio==1.43.0  # for some reason newer versions print out error messages
 #python -m pip install aioconsole
 #python -m pip install pyqt5
 #python -m pip install pymavlink

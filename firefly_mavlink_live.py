@@ -37,6 +37,7 @@ class MavlinkSerialPort:
         self.port = devnum
         self.debug("Connecting with MAVLink to %s ..." % portname)
         self.mav = mavutil.mavlink_connection(portname, autoreconnect=True, baud=baudrate)
+        self.mav.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GENERIC, mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
         self.mav.wait_heartbeat()
         self.debug("HEARTBEAT OK\n")
         self.debug("Locked serial device\n")
@@ -177,7 +178,7 @@ class FireflyMavlink:
 
 
 if __name__ == '__main__':
-    fm = FireflyMavlink(port='/dev/ttyACM1', baudrate=57600)
+    fm = FireflyMavlink(port='/dev/ttyACM0', baudrate=57600)
 
     fm_queue = queue.Queue()
     fm_thread = fm.start(fm_queue)
