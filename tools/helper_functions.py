@@ -43,6 +43,20 @@ def normalize(data_vector, method='zscore'):
         return data_vector
 
 
+def moving_average(in_dict, window=5):
+    """ Calculates the moving average of the values for every dictionary"""
+    out_dict = {}
+
+    # do moving average for numpy array
+    if type(in_dict) is np.ndarray:
+        return np.convolve(in_dict, np.ones(window), 'same') / window
+
+    for motor in in_dict:
+        out_dict[motor] = np.convolve(in_dict[motor], np.ones(window), 'same') / window
+
+    return out_dict
+
+
 def get_y_bound(y_values, t0, t1):
     """ Get the upper and lower y boundaries for power plot """
     minimum = 300

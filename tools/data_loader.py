@@ -1,6 +1,12 @@
 """ Some helper functions to get data from firefly_df """
 
 import numpy as np
+import pandas as pd
+
+import os
+import glob
+
+from tools.helper_functions import moving_average
 
 
 def get_current(firefly_df):
@@ -87,16 +93,96 @@ def get_out_throttle(firefly_df):
     return out_throttle
 
 
-def moving_average(in_dict, window=5):
-    """ Calculates the moving average of the values for every dictionary"""
-    out_dict = {}
+# def moving_average(in_dict, window=5):
+#     """ Calculates the moving average of the values for every dictionary"""
+#     out_dict = {}
+#
+#     # do moving average for numpy array
+#     if type(in_dict) is np.ndarray:
+#         return np.convolve(in_dict, np.ones(window), 'same') / window
+#
+#     for motor in in_dict:
+#         out_dict[motor] = np.convolve(in_dict[motor], np.ones(window), 'same') / window
+#
+#     return out_dict
 
-    # do moving average for numpy array
-    if type(in_dict) is np.ndarray:
-        return np.convolve(in_dict, np.ones(window), 'same') / window
+def load_flight_data(flight, limit=10):
 
-    for motor in in_dict:
-        out_dict[motor] = np.convolve(in_dict[motor], np.ones(window), 'same') / window
+    data_directory = flight + f'hover_{limit}_limit'
+    csv_files = glob.glob(os.path.join(data_directory, "*.csv"))
 
-    return out_dict
+    if limit == 10 and not csv_files:
+        data_directory = flight + f'hover_{100}_limit'
+        csv_files = glob.glob(os.path.join(data_directory, "*.csv"))
+
+    sorted_files = []
+
+    # sort sequences in ascending order
+    for i in range(len(csv_files)):
+        for e in csv_files:
+            if f'sequence_{i}_' in e:
+                # print(e)
+                sorted_files.append(e)
+                break
+
+    full_flight = pd.DataFrame()
+
+    for csv_file in sorted_files:
+
+        full_flight = pd.concat([full_flight, pd.read_csv(csv_file)])
+
+    return full_flight
+
+
+def select_sequence(data, xMin, xMax):
+
+    lower_index = xMin * 30
+    upper_index = xMax * 30
+
+    hover = np.arange(len(data))[lower_index: -upper_index]
+
+    return data.iloc[hover]
+
+
+def clean_data(flightdata):
+    # cleaning and renaming of flight_data dataframe
+
+    flightdata = flightdata.rename(columns={'nsh[0]': 'delta0'})
+    flightdata = flightdata.rename(columns={'ctrl_1': 'uIn1', 'ctrl_2': 'uIn2', 'ctrl_3': 'uIn3', 'ctrl_4': 'uIn4'})
+
+    flightdata = flightdata.drop(columns=['time_boot_ms', 'status', 'nooutputs',
+                                          'ctrl_5', 'ctrl_6', 'ctrl_7', 'ctrl_8', ' nsh[1]'])
+
+    flightdata['t'] = ((flightdata['t'].values - min(flightdata['t'].values)) / 10e5)
+
+    # rename some columns to more intuitive names, added bias from calibration to current and voltage
+    # calculate motor power
+
+    for i in range(1, 9):
+        flightdata = flightdata.rename(columns={f'U1{i}': f'U{i}',
+                                                f'I1{i}': f'I{i}', f'omega{i}': f'rpm{i}', f'delta_{i}': f'uOut{i}'})
+        # fd[f'U{i}'] = fd[f'U{i}'] - motorVoltageBias[i-1]
+        # fd[f'I{i}'] = fd[f'I{i}'] - motorCurrentBias[i-1]
+        # fd[f'pMo{i}'] = fd[f'U{i}'] * fd[f'I{i}']
+
+        flightdata = flightdata.drop(columns=[f'thr_in{i}'])
+        flightdata = flightdata.drop(columns=[f'thr_out{i}'])
+        flightdata = flightdata.drop(columns=[f'pwm_{i}'])
+        flightdata = flightdata.drop(columns=[f'output{i}'])
+
+    return flightdata
+
+
+def apply_motor_calibration(flightdata):
+
+    motorCurrentBias = np.array([6.36, 2.10, -2.27, 0.09, 6.22, 3.01, -2.66, -1.55])
+    motorVoltageBias = np.array([0.07, 0.25, 0.24, 0.24, 0.17, 0.46, -0.04, 0.14])  # bias from ground test
+    additionalBias = np.array([0, 0, 0.04, 0, 0, 0, 0, -0.04])  # bias through aggregated flight data
+
+    for i in range(1, 9):
+        flightdata[f'U{i}'] = flightdata[f'U{i}'] - motorVoltageBias[i - 1]
+        flightdata[f'I{i}'] = flightdata[f'I{i}'] - motorCurrentBias[i - 1]
+
+    return flightdata
+
 
