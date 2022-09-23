@@ -93,19 +93,6 @@ def get_out_throttle(firefly_df):
     return out_throttle
 
 
-# def moving_average(in_dict, window=5):
-#     """ Calculates the moving average of the values for every dictionary"""
-#     out_dict = {}
-#
-#     # do moving average for numpy array
-#     if type(in_dict) is np.ndarray:
-#         return np.convolve(in_dict, np.ones(window), 'same') / window
-#
-#     for motor in in_dict:
-#         out_dict[motor] = np.convolve(in_dict[motor], np.ones(window), 'same') / window
-#
-#     return out_dict
-
 def load_flight_data(flight, limit=10):
 
     data_directory = flight + f'hover_{limit}_limit'
@@ -131,6 +118,9 @@ def load_flight_data(flight, limit=10):
 
         full_flight = pd.concat([full_flight, pd.read_csv(csv_file)])
 
+    # reset index
+    full_flight = full_flight.reset_index(drop=True)
+
     return full_flight
 
 
@@ -139,9 +129,9 @@ def select_sequence(data, xMin, xMax):
     lower_index = xMin * 30
     upper_index = xMax * 30
 
-    hover = np.arange(len(data))[lower_index: -upper_index]
+    hover_index = np.arange(len(data))[lower_index: -upper_index]
 
-    return data.iloc[hover]
+    return hover_index, data.iloc[hover_index]
 
 
 def clean_data(flightdata):
@@ -152,8 +142,6 @@ def clean_data(flightdata):
 
     flightdata = flightdata.drop(columns=['time_boot_ms', 'status', 'nooutputs',
                                           'ctrl_5', 'ctrl_6', 'ctrl_7', 'ctrl_8', ' nsh[1]'])
-
-    flightdata['t'] = ((flightdata['t'].values - min(flightdata['t'].values)) / 10e5)
 
     # rename some columns to more intuitive names, added bias from calibration to current and voltage
     # calculate motor power
@@ -173,6 +161,17 @@ def clean_data(flightdata):
     return flightdata
 
 
+def convert_time(flightdata, start_with_zero=True):
+
+    if start_with_zero:
+        flightdata['t'] = ((flightdata['t'].values - min(flightdata['t'].values)) / 10e5)
+
+    else:
+        flightdata['t'] = (flightdata['t'].values / 10e5)
+
+    return flightdata
+
+
 def apply_motor_calibration(flightdata):
 
     motorCurrentBias = np.array([6.36, 2.10, -2.27, 0.09, 6.22, 3.01, -2.66, -1.55])
@@ -185,4 +184,50 @@ def apply_motor_calibration(flightdata):
 
     return flightdata
 
+
+def calculate_power_and_rpm(fd):
+    for i in range(1, 9):
+        fd[f'pMo{i}'] = fd[f'U{i}'] * fd[f'I{i}']
+
+    # delta RPM for each individual arm
+    fd[f'dRpmArm1'] = fd['rpm2'] - fd['rpm5']
+    fd[f'dRpmArm2'] = fd['rpm1'] - fd['rpm6']
+    fd[f'dRpmArm3'] = fd['rpm3'] - fd['rpm8']
+    fd[f'dRpmArm4'] = fd['rpm4'] - fd['rpm7']
+
+    # add power for each individual arm
+    fd[f'pArm1'] = fd['pMo2'] + fd['pMo5']
+    fd[f'pArm2'] = fd['pMo1'] + fd['pMo6']
+    fd[f'pArm3'] = fd['pMo3'] + fd['pMo8']
+    fd[f'pArm4'] = fd['pMo4'] + fd['pMo7']
+
+    # calculate total vehicle power
+    fd['pVehicle'] = fd['pArm1'] + fd['pArm2'] + fd['pArm3'] + fd['pArm4']
+
+    return fd
+
+
+def calculate_motor_cmds(fd):
+
+    delta0 = fd['delta0'].values
+
+    ctrl_input = np.array([fd[f'uIn1'], fd[f'uIn2'], fd[f'uIn3'], fd[f'uIn4'],
+                           delta0, delta0,
+                           delta0, delta0])
+
+    B_plus = np.array([[-1.4142, 1.4142, 2.0000, 2.0000, 0.4981, 0.0019, -0.0019, 0.0019],
+                       [1.4142, 1.4142, -2.0000, 2.0000, 0.0019, 0.4981, 0.0019, -0.0019],
+                       [1.4142, -1.4142, 2.0000, 2.0000, -0.0019, 0.0019, 0.4981, 0.0019],
+                       [-1.4142, -1.4142, -2.0000, 2.0000, 0.0019, -0.0019, 0.0019, 0.4981],
+                       [1.4142, 1.4142, 2.0000, 2.0000, -0.0019, -0.4981, -0.0019, 0.0019],
+                       [-1.4142, 1.4142, -2.0000, 2.0000, -0.4981, -0.0019, 0.0019, -0.0019],
+                       [-1.4142, -1.4142, 2.0000, 2.0000, -0.0019, 0.0019, -0.0019, -0.4981],
+                       [1.4142, -1.4142, -2.0000, 2.0000, 0.0019, -0.0019, -0.4981, -0.0019]])
+
+    delta_cmd = (B_plus @ ctrl_input) - 1
+
+    for i in range(1, 9):
+        fd[f'uOut{i}'] = delta_cmd[i - 1, :]
+
+    return fd
 
