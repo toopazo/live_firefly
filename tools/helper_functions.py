@@ -44,6 +44,26 @@ def normalize(data_vector, method='zscore'):
         return data_vector
 
 
+def rolling_normal(data, window=60, method='minmax'):
+
+    if method == 'minmax':
+        minimum = data.rolling(window, 1).min()
+        maximum = data.rolling(window, 1).max()
+
+        normData = (data - minimum) / (maximum - minimum)
+
+    else:
+        rollingMean = data.rolling(window, 1).mean()
+        rollingStd = data.rolling(window, 1).std()
+
+        normData = (data - rollingMean) / rollingStd
+
+    if normData.isna().iloc[0].sum() > 0:
+        normData.iloc[0] = normData.iloc[1]
+
+    return normData
+
+
 def moving_average(in_data, window=5):
     """ Calculates the moving average of the values for every dictionary"""
 

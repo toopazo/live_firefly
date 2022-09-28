@@ -131,7 +131,8 @@ def select_sequence(data, xMin, xMax):
 
     hover_index = np.arange(len(data))[lower_index: -upper_index]
 
-    return hover_index, data.iloc[hover_index]
+    returnData = data.copy(deep=True)
+    return hover_index, returnData.iloc[hover_index]
 
 
 def clean_data(flightdata):
