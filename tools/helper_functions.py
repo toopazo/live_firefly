@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 
 def split_sequences(index_array, min_length=0):
     """ splits the index array into sequences. Discards sequences with length below min_length"""
@@ -93,3 +95,21 @@ def get_y_bound(y_values, t0, t1):
         maximum = np.max(y_values[t0:t1])
 
     return [minimum, maximum]
+
+
+def perform_polynomial_regression(data, x, y):
+    # regression for power vs. dRPM
+
+    X = data[[x]]
+    Y = data[[y]]
+
+    regressionRange = np.linspace(X.min(), X.max(), 1000)
+
+    features = PolynomialFeatures(degree=2, include_bias=True).fit_transform(X)
+    dRpmRegression = LinearRegression(fit_intercept=False, positive=False)
+    dRpmRegression.fit(features, Y)
+
+    dRpmRangePoly = PolynomialFeatures(degree=2, include_bias=True).fit_transform(regressionRange)
+    regressionCurve = dRpmRegression.predict(dRpmRangePoly)
+
+    return regressionRange, regressionCurve

@@ -8,6 +8,8 @@ import glob
 
 from tools.helper_functions import moving_average
 
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 
 def get_current(firefly_df):
 
@@ -129,7 +131,7 @@ def select_sequence(data, xMin, xMax):
     lower_index = xMin * 30
     upper_index = xMax * 30
 
-    hover_index = np.arange(len(data))[lower_index: -upper_index]
+    hover_index = np.arange(len(data))[lower_index: upper_index]
 
     returnData = data.copy(deep=True)
     return hover_index, returnData.iloc[hover_index]
@@ -150,9 +152,6 @@ def clean_data(flightdata):
     for i in range(1, 9):
         flightdata = flightdata.rename(columns={f'U1{i}': f'U{i}',
                                                 f'I1{i}': f'I{i}', f'omega{i}': f'rpm{i}', f'delta_{i}': f'uOut{i}'})
-        # fd[f'U{i}'] = fd[f'U{i}'] - motorVoltageBias[i-1]
-        # fd[f'I{i}'] = fd[f'I{i}'] - motorCurrentBias[i-1]
-        # fd[f'pMo{i}'] = fd[f'U{i}'] * fd[f'I{i}']
 
         flightdata = flightdata.drop(columns=[f'thr_in{i}'])
         flightdata = flightdata.drop(columns=[f'thr_out{i}'])
@@ -196,6 +195,8 @@ def calculate_power_and_rpm(fd):
     fd[f'dRpmArm3'] = fd['rpm3'] - fd['rpm8']
     fd[f'dRpmArm4'] = fd['rpm4'] - fd['rpm7']
 
+    # average delta RPM
+    fd[f'dRpmVehicle'] = (fd[f'dRpmArm1'] + fd[f'dRpmArm2'] + fd[f'dRpmArm3'] + fd[f'dRpmArm4']) / 4
     # add power for each individual arm
     fd[f'pArm1'] = fd['pMo2'] + fd['pMo5']
     fd[f'pArm2'] = fd['pMo1'] + fd['pMo6']
@@ -232,3 +233,46 @@ def calculate_motor_cmds(fd):
 
     return fd
 
+
+def correct_motor_current(fd):
+
+    rpm_range = np.linspace(0, 3000, 100).reshape(-1, 1)
+    currentRegMotorValues = []
+    currentRegCurve = []
+    fd_current = []
+
+    for i in range(1, 9):
+
+        # get all points where I3 has its minimum value and RPM is greater than 0
+        filtered = fd[fd[f'I{i}'] > fd[f'I{i}'].min()]
+        filtered = filtered[filtered[f'rpm{i}'] > 0]
+
+        rpm = filtered[[f'rpm{i}']]
+        current = filtered[[f'I{i}']]
+
+        rpmAsPolynomial = PolynomialFeatures(degree=3, include_bias=False).fit_transform(rpm)
+
+        currentRegression = LinearRegression(fit_intercept=False, positive=True).fit(rpmAsPolynomial, current)
+
+        rpmRangePolynomial = PolynomialFeatures(degree=3, include_bias=False).fit_transform(rpm_range)
+
+        currentPredictions = currentRegression.predict(rpmRangePolynomial)
+
+        currentRegMotorValues.append(currentPredictions)
+        fd_current.append(filtered)
+        currentRegCurve.append(currentRegression)
+
+    # get indices where I3 is minimum
+    minI3 = fd['I3'] == fd[f'I3'].min()
+    rpm3Data = fd['rpm3'][minI3].values.reshape(-1, 1)
+
+    # transform polynomial features
+    rpm3Features = PolynomialFeatures(degree=3, include_bias=False).fit_transform(rpm3Data)
+
+    # perform regression
+    rpm3RegressionResult = currentRegCurve[2].predict(rpm3Features).reshape(-1)
+
+    # apply correction to current signal
+    fd.loc[minI3, 'I3'] = rpm3RegressionResult
+
+    return fd, minI3
